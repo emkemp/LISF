@@ -3021,7 +3021,7 @@ contains
     integer,   intent(in)     :: m
     integer,   intent(in)     :: ftn
     character(len=*), intent(in) :: model_name
-    integer                   :: dimID(10)
+    integer                   :: dimID(11) ! EMK Size increased for JULES
     integer,    optional      :: dim1
     integer,    optional      :: dim2
     integer,    optional      :: dim3
@@ -3125,8 +3125,9 @@ contains
                   'nf90_def_dim failed for dim9 in LIS_writeGlobalHeader_restart')
           endif
           if(present(dim10)) then
+             ! EMK Fix for JULES
              call LIS_verify(nf90_def_dim(ftn,"dim10",&
-                  dim10,dimID(10)),&
+                  dim10,dimID(11)),&
                   'nf90_def_dim failed for dim10 in LIS_writeGlobalHeader_restart')
           endif
           call LIS_verify(nf90_put_att(ftn,NF90_GLOBAL,"missing_value", &
@@ -3271,7 +3272,7 @@ contains
 ! !ARGUMENTS:     
     integer                    :: ftn
     integer                    :: n
-    integer                    :: dimID(10)
+    integer                    :: dimID(11) ! EMK Fix for JULES
     integer                    :: vid
     character(len=*)           :: standard_name
     character(len=*)           :: long_name
@@ -3343,6 +3344,8 @@ contains
           dimID_t(2) = dimID(9)
        elseif(var_flag_tmp.eq."dim9") then 
           dimID_t(2) = dimID(10)
+       elseif(var_flag_tmp.eq."dim10") then ! EMK Fix for JULES
+          dimID_t(2) = dimID(11)
        elseif(var_flag_tmp.eq."tbot_lagday") then 
           call LIS_verify(nf90_inq_dimid(ftn, "tbot_lagday", dimID_t(2)),&
                'nf90_inq_dimid for tbot_lagday failed '//&

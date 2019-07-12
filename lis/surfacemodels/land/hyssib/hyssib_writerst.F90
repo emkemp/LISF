@@ -173,7 +173,7 @@ subroutine hyssib_dump_restart(n, ftn,wformat)
 !
 !EOP
   integer :: l
-  integer :: dimID(10)
+  integer :: dimID(11) ! EMK Fix for JULES
   integer :: tcId, tgId, tsnId, tdId, wwwId, capacId, snowId, sgfgId, sdensId
 
   call LIS_writeGlobalHeader_restart(ftn,n,LIS_rc%lsm_index,&

@@ -209,7 +209,7 @@ subroutine NoahMP401_dump_restart(n, ftn, wformat)
                
     integer :: l, t 
     real    :: tmptilen(LIS_rc%npatch(n, LIS_rc%lsm_index))
-    integer :: dimID(10)
+    integer :: dimID(11) ! EMK Fix for JULES
     integer :: sfcrunoff_ID
     integer :: udrrunoff_ID
     integer :: smc_ID

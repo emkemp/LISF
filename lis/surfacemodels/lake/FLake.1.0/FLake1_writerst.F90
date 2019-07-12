@@ -180,7 +180,7 @@ subroutine FLake1_dump_restart(n, ftn, wformat)
   
   integer :: l, t 
   real    :: tmptilen(LIS_rc%npatch(n, LIS_rc%lake_index))
-  integer :: dimID(10)
+  integer :: dimID(11) ! EMK Fix for JULES
   integer :: T_snow_ID
   integer :: T_ice_ID
   integer :: T_mnw_ID

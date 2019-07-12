@@ -183,7 +183,7 @@ subroutine RUC37_dump_restart(n, ftn, wformat)
                
     integer :: l, t 
     real    :: tmptilen(LIS_rc%npatch(n, LIS_rc%lsm_index))
-    integer :: dimID(10)
+    integer :: dimID(11) ! EMK Fix for JULES
     integer :: emiss_ID
     integer :: ch_ID
     integer :: cm_ID

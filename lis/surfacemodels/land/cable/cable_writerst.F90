@@ -184,7 +184,7 @@ subroutine cable_dump_restart(n,ftn,wformat)
 !  \end{description}
 !EOP
   integer :: l,t
-  integer :: dimID(10)
+  integer :: dimID(11) ! EMK Fix for JULES
   integer :: canstoId,rtsoilId, ssdnnId, snowdId,osnowdId
   integer :: snageId,isflagId, wbtotId,wbiceId,tggsnId
   integer :: ssdnId, smassId,albsoilsnId,wgId,tggId

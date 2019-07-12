@@ -159,7 +159,7 @@ subroutine clsmf25_dump_restart(n, ftn, wformat)
 !EOP
    integer :: t,l
    real, allocatable :: temp(:)
-   integer :: dimID(10)
+   integer :: dimID(11) ! EMK Fix for JULES
    integer :: tc1Id, tc2Id, tc4Id, qa1Id, qa2Id, qa4Id
    integer :: capacId, ghtId, wesnId, htsnId, sndzId
    integer :: catdefId, rzexcId, srfexcId

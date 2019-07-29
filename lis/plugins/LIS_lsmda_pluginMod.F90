@@ -231,12 +231,13 @@ subroutine LIS_lsmda_plugin
 #endif
 #endif
 
+#endif
+
+! EMK Land DA for JULES 5.X container
 #if ( defined SM_JULES_5_X )
    use jules5x_dasoilm_Mod
    use jules5x_dasnodep_Mod
    use jules5x_daldtsi_Mod
-#endif
-
 #endif
 
 #if ( defined SM_NOAH_2_7_1 )

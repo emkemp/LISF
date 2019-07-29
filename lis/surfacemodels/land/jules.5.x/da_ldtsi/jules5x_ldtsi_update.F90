@@ -31,7 +31,8 @@ subroutine jules5x_ldtsi_update(n, t, dsneqv, dsnowh)
   USE snowgrain_mod,       ONLY: snowgrain
   USE layersnow_mod,       ONLY: layersnow
   USE ancil_info,          ONLY: land_pts, nsurft, nsoilt
-  USE c_0_dg_c,            ONLY: tm
+  !USE c_0_dg_c,            ONLY: tm
+  USE water_constants_mod, ONLY: tm ! EMK for Jules 5.X
   USE jules_radiation_mod, ONLY: l_snow_albedo, l_embedded_snow
 
 

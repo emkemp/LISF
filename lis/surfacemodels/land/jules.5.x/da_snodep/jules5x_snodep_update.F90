@@ -102,7 +102,8 @@ REAL ::                                                                       &
   nsnow(land_pts,nsurft)         = jules5x_struc(n)%jules5x(t)%nsnow(nsurft)
   snow_surft(land_pts,nsurft)    = jules5x_struc(n)%jules5x(t)%snow_tile(nsurft)   ! ntiles, Lying snow on tiles (kg m-2)
   snow_grnd(land_pts,nsurft)     = jules5x_struc(n)%jules5x(t)%snow_grnd(nsurft)   ! ntiles, Snow on the ground (kg m-2)
-  t_soil1_soilt(land_pts,nsoilt) = jules5x_struc(n)%jules5x(t)%t_soil(nsurft)      ! sm_levels, Sub-surface temperatures (K)
+  !t_soil1_soilt(land_pts,nsoilt) = jules5x_struc(n)%jules5x(t)%t_soil(nsurft)      ! sm_levels, Sub-surface temperatures (K)
+  t_soil1_soilt(land_pts,nsoilt) = jules5x_struc(n)%jules5x(t)%t_soil(nsoilt)      ! sm_levels, Sub-surface temperatures (K)
   rho_snow_grnd(land_pts,nsurft) = jules5x_struc(n)%jules5x(t)%rho_snow_grnd(nsurft)  
   tstar_surft(land_pts,nsurft)   = jules5x_struc(n)%jules5x(t)%tstar_tile(nsurft)  ! ntiles, Tile surface temperatures (K)
   rgrain(land_pts,nsurft)        = jules5x_struc(n)%jules5x(t)%rgrain(nsurft)      ! snow surface grain size

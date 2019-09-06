@@ -152,7 +152,8 @@ subroutine jules5x_main(n)
             snow_tile(:, :)     = 0.0
             snow_grnd(:, :)     = 0.0
             tstar_tile(:, :)    = 0.0
-            dt = LIS_rc%ts
+            !dt = LIS_rc%ts
+            dt = LIS_rc%nts(n) ! EMK Bug fix
             lat = LIS_domain(n)%grid(cur_grid)%lat
             lon = LIS_domain(n)%grid(cur_grid)%lon
 

@@ -63,7 +63,7 @@ subroutine readGHCNObs(source)
 
   prcp = 0
   nprcp = 0 
-  
+
   if((ghcnobs(source)%yr.ne.LVT_rc%dyr(source)).or.&
        LVT_rc%resetFlag(source)) then 
 
@@ -73,7 +73,7 @@ subroutine readGHCNObs(source)
 
      ghcnobs(source)%prcp = LVT_rc%udef
      
-     call ESMF_TimeSet(ghcnobs(source)%startTime,  yy=LVT_rc%dyr(source), &
+     call ESMF_TimeSet(ghcnobs(source)%startTime,  yy=LVT_rc%yr, &
           mm = 1, &
           dd = 1, &
           h = 0, &
@@ -88,6 +88,12 @@ subroutine readGHCNObs(source)
      call read_ghcndata(source, ghcnname)  
 
   endif
+
+  ! EMK TEST...Log the data at 00Z
+  if (LVT_rc%dhr(source) .ne. 0) return
+  if (LVT_rc%dmn(source) .ne. 0) return ! EMK BUG FIX
+  if (LVT_rc%dss(source) .ne. 0) return ! EMK BUG FIX
+  !if (LVT_rc%dhr(source) .ne. 12) return
 
   call ESMF_TimeSet(ghcntime1, yy=LVT_rc%dyr(source), &
        mm=LVT_rc%dmo(source), dd=LVT_rc%dda(source), h=LVT_rc%dhr(source),&
@@ -116,9 +122,14 @@ subroutine readGHCNObs(source)
      
      if(stn_col.ge.1.and.stn_col.le.LVT_rc%lnc.and.&
           stn_row.ge.1.and.stn_row.le.LVT_rc%lnr.and.&
-          ghcnobs(source)%prcp(i,t).gt.0) then 
+          ghcnobs(source)%prcp(i,t).ge.0) then         
+        !prcp(stn_col,stn_row) = &
+        !     ghcnobs(source)%prcp(i,t) 
+        ! EMK TEST
         prcp(stn_col,stn_row) = &
-             ghcnobs(source)%prcp(i,t)
+             ghcnobs(source)%prcp(i,t) + prcp(stn_col,stn_row)
+        nprcp(stn_col, stn_row) = &
+             nprcp(stn_col, stn_row) + 1 ! EMK TEST
      endif
   enddo
 
@@ -129,6 +140,13 @@ subroutine readGHCNObs(source)
         else
            snowdepth(c,r) = LVT_rc%udef
         endif
+        ! EMK TEST
+        if (nprcp(c,r) .gt. 0) then
+           prcp(c,r) = prcp(c,r) / nprcp(c,r)
+        else
+           prcp(c,r) = LVT_rc%udef
+        endif
+        ! EMK TEST END
      enddo
   enddo
 
@@ -137,17 +155,17 @@ subroutine readGHCNObs(source)
   call LVT_logSingleDataStreamVar(LVT_MOC_rainfforc,source,prcp,vlevel=1,units='kg/m2')
   call LVT_logSingleDataStreamVar(LVT_MOC_totalprecip,source,prcp,vlevel=1,units='kg/m2')
 
-  do r=1, LVT_rc%lnr
-     do c=1,LVT_rc%lnc
-        if(prcp(c,r).ne.LVT_rc%udef) then 
-           prcp(c,r) = prcp(c,r)/86400.0
-        endif
-     enddo
-  enddo
+!   do r=1, LVT_rc%lnr
+!      do c=1,LVT_rc%lnc
+!         if(prcp(c,r).ne.LVT_rc%udef) then 
+!            prcp(c,r) = prcp(c,r)/86400.0
+!         endif
+!      enddo
+!   enddo
 
-  call LVT_logSingleDataStreamVar(LVT_MOC_rainf,source,prcp,vlevel=1,units='kg/m2s')
-  call LVT_logSingleDataStreamVar(LVT_MOC_rainfforc,source,prcp,vlevel=1,units='kg/m2s')
-  call LVT_logSingleDataStreamVar(LVT_MOC_totalprecip,source,prcp,vlevel=1,units='kg/m2s')
+!   call LVT_logSingleDataStreamVar(LVT_MOC_rainf,source,prcp,vlevel=1,units='kg/m2s')
+!   call LVT_logSingleDataStreamVar(LVT_MOC_rainfforc,source,prcp,vlevel=1,units='kg/m2s')
+!   call LVT_logSingleDataStreamVar(LVT_MOC_totalprecip,source,prcp,vlevel=1,units='kg/m2s')
 end subroutine readGhcnobs
 
 !BOP
@@ -203,6 +221,11 @@ subroutine read_ghcndata(source, filename)
 
   inquire(file=trim(filename),exist=file_exists)
 
+  ! EMK TEST
+  if (.not. file_exists) then
+     write(LVT_logunit,*)'[WARN] Cannot find GHCN file ',trim(filename)
+  endif
+
   if(file_exists) then 
      write(LVT_logunit,*) '[INFO] Reading GHCN file ',trim(filename)
      ftn = LVT_getNextUnitNumber()
@@ -257,8 +280,10 @@ subroutine read_ghcndata(source, filename)
 
         read(cline,*) snod
         
-        if(month.ne.99.and.day.ne.99.and.hour.ne.99.and.minute.ne.99.and.&
-             snod.gt.0) then 
+        !if(month.ne.99.and.day.ne.99.and.hour.ne.99.and.minute.ne.99.and.&
+        !     snod.gt.0) then 
+        ! EMK...Only worry about precip
+        if(month.ne.99 .and. day.ne.99 .and. prcp.ge.0) then 
            
            call getGHCNstnIndex(source, stnname, i)
            
@@ -269,7 +294,7 @@ subroutine read_ghcndata(source, filename)
               
               t = nint((ghcntime - ghcnobs(source)%startTime)/&
                    ghcnobs(source)%timestep) + 1
-
+              
               ghcnobs(source)%snod(i,t) = snod/1000.0
               ghcnobs(source)%prcp(i,t) = prcp
 
@@ -342,7 +367,10 @@ subroutine create_ghcnsnwd_filename(odir, yr, ghcnname)
   
   write(fyr, '(i4.4)' ) yr
 
-  ghcnname = trim(odir)//'/'//trim(fyr)//'/ghcn-proc_'//&
+  ! EMK TEST
+  !ghcnname = trim(odir)//'/'//trim(fyr)//'/ghcn-proc_'//&
+  !     trim(fyr)//'.txt'
+  ghcnname = trim(odir)//'/'//'/ghcn-proc_'//&
        trim(fyr)//'.txt'
   
 end subroutine create_ghcnsnwd_filename

@@ -167,8 +167,10 @@ subroutine readAPHROPRCPobs(source)
           s = LVT_rc%dss(source), calendar=LVT_calendar, rc=status)
      call LVT_verify(status, 'aphrotime1 set failed')
 
+     !k = nint((aphrotime1 - aphroprcpobs(source)%starttime) / &
+     !     aphroprcpobs(source)%timestep)+1
      k = nint((aphrotime1 - aphroprcpobs(source)%starttime) / &
-          aphroprcpobs(source)%timestep)+1
+          aphroprcpobs(source)%timestep) ! EMK Bug Fix
 
      lb = .false.
      prcp_in = LVT_rc%udef

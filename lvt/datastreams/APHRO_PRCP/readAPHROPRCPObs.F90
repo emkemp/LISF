@@ -63,7 +63,6 @@ subroutine readAPHROPRCPobs(source)
   real                :: timenow
   logical             :: alarmCheck
   real                :: fill_value ! EMK
-  real                :: go(LVT_rc%lnc * LVT_rc%lnr) ! EMK
 
   prcp_out = LVT_rc%udef
   prcp_final = LVT_rc%udef
@@ -202,7 +201,7 @@ subroutine readAPHROPRCPobs(source)
 
      if (LVT_isAtAFinerResolution(aphroprcpobs(source)%datares)) then
         call conserv_interp(LVT_rc%gridDesc, lb, prcp_in, &
-             lo, go, &
+             lo, prcp_out, &
              aphroprcpobs(source)%nc * aphroprcpobs(source)%nr, &
              LVT_rc%lnc*LVT_rc%lnr, &
              aphroprcpobs(source)%rlat, aphroprcpobs(source)%rlon, &
@@ -216,7 +215,7 @@ subroutine readAPHROPRCPobs(source)
               aphroprcpobs(source)%nc * aphroprcpobs(source)%nr, &
               LVT_rc%lnc*LVT_rc%lnr, LVT_rc%udef, &
               aphroprcpobs(source)%n11, lb, &
-              prcp_in, lo, go)
+              prcp_in, lo, prcp_out)
       end if
 
      do r=1,LVT_rc%lnr

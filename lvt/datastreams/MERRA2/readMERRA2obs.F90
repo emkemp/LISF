@@ -1,13 +1,13 @@
-!-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------------
+!-----------------------BEGIN NOTICE -- DO NOT EDIT----------------------------
 ! NASA GSFC Land surface Verification Toolkit (LVT) V1.0
-!-------------------------END NOTICE -- DO NOT EDIT-----------------------------
+!-------------------------END NOTICE -- DO NOT EDIT----------------------------
 #include "LVT_misc.h"
 !BOP
-! 
+!
 ! !ROUTINE: readMERRA2Obs
 ! \label{readMERRA2Obs}
 !
-! !INTERFACE: 
+! !INTERFACE:
 subroutine readMERRA2Obs(source)
 ! 
 ! !USES:   
@@ -120,7 +120,8 @@ subroutine readMERRA2Obs(source)
      ss = LVT_rc%dss(source)
      
      !set back by one day. 
-     call LVT_tick(lis_prevtime, doy, gmt, yr,mo,da,hr,mn,ss,-86400)
+     !EMK TEST...Disable going back one day
+     !call LVT_tick(lis_prevtime, doy, gmt, yr,mo,da,hr,mn,ss,-86400)
      
      call process_MERRA2data(source, yr, mo, da)
      
@@ -139,82 +140,82 @@ subroutine readMERRA2Obs(source)
   t = nint((merra2time1 - merra2obs(source)%starttime)/&
        merra2obs(source)%ts) + 1
   
-  call aggregate_merra2var(source, t, qs, &
-       merra2obs(source)%qs)
-  call aggregate_merra2var(source, t, qsb, &
-       merra2obs(source)%qsb)
-  call aggregate_merra2var(source, t, swnet, &
-       merra2obs(source)%swnet)
-  call aggregate_merra2var(source, t, qle,&
-       merra2obs(source)%qle)
-  call aggregate_merra2var(source, t, qh, &
-       merra2obs(source)%qh)
-  call aggregate_merra2var(source, t, frsno,&
-       merra2obs(source)%frsno)
-  call aggregate_merra2var(source, t, snod, &
-       merra2obs(source)%snod)
-  call aggregate_merra2var(source, t, swe, &
-       merra2obs(source)%swe)
-  call aggregate_merra2var(source, t, qg, &
-       merra2obs(source)%qg)
-  call aggregate_merra2var(source, t, sfsm, &
-       merra2obs(source)%sfsm)
-  call aggregate_merra2var(source, t, rzsm, &
-       merra2obs(source)%rzsm)
+!   call aggregate_merra2var(source, t, qs, &
+!        merra2obs(source)%qs)
+!   call aggregate_merra2var(source, t, qsb, &
+!        merra2obs(source)%qsb)
+!   call aggregate_merra2var(source, t, swnet, &
+!        merra2obs(source)%swnet)
+!   call aggregate_merra2var(source, t, qle,&
+!        merra2obs(source)%qle)
+!   call aggregate_merra2var(source, t, qh, &
+!        merra2obs(source)%qh)
+!   call aggregate_merra2var(source, t, frsno,&
+!        merra2obs(source)%frsno)
+!   call aggregate_merra2var(source, t, snod, &
+!        merra2obs(source)%snod)
+!   call aggregate_merra2var(source, t, swe, &
+!        merra2obs(source)%swe)
+!   call aggregate_merra2var(source, t, qg, &
+!        merra2obs(source)%qg)
+!   call aggregate_merra2var(source, t, sfsm, &
+!        merra2obs(source)%sfsm)
+!   call aggregate_merra2var(source, t, rzsm, &
+!        merra2obs(source)%rzsm)
   call aggregate_merra2var(source, t, prcp,  &
        merra2obs(source)%prcp)
-  call aggregate_merra2var(source, t, tair,  &
-       merra2obs(source)%tair)
-  call aggregate_merra2var(source, t, tskin,&
-       merra2obs(source)%tskin)
+!   call aggregate_merra2var(source, t, tair,  &
+!        merra2obs(source)%tair)
+!   call aggregate_merra2var(source, t, tskin,&
+!        merra2obs(source)%tskin)
   
-  do r=1,LVT_rc%lnr
-     do c=1,LVT_rc%lnc
-        if(qle(c,r).ne.LVT_rc%udef) then 
-           rnet(c,r) = qle(c,r) + qh(c,r)+qg(c,r)
-        endif
-     enddo
-  enddo
+!   do r=1,LVT_rc%lnr
+!      do c=1,LVT_rc%lnc
+!         if(qle(c,r).ne.LVT_rc%udef) then 
+!            rnet(c,r) = qle(c,r) + qh(c,r)+qg(c,r)
+!         endif
+!      enddo
+!   enddo
   
-  call LVT_logSingleDataStreamVar(LVT_MOC_QS,source,qs,&
-       vlevel=1,units="kg/m2s")
-  call LVT_logSingleDataStreamVar(LVT_MOC_QSB,source,qsb,&
-       vlevel=1,units="kg/m2s")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_QS,source,qs,&
+!        vlevel=1,units="kg/m2s")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_QSB,source,qsb,&
+!        vlevel=1,units="kg/m2s")
   
-  do r=1,LVT_rc%lnr
-     do c=1,LVT_rc%lnc
-        if(qs(c,r).ne.LVT_rc%udef) then 
-           trunoff(c,r) = qs(c,r) + qsb(c,r)
-        endif
-     enddo
-  enddo
-  call LVT_logSingleDataStreamVar(LVT_MOC_RUNOFF,source,trunoff,&
-       vlevel=1,units="kg/m2s")
+!   do r=1,LVT_rc%lnr
+!      do c=1,LVT_rc%lnc
+!         if(qs(c,r).ne.LVT_rc%udef) then 
+!            trunoff(c,r) = qs(c,r) + qsb(c,r)
+!         endif
+!      enddo
+!   enddo
+!   call LVT_logSingleDataStreamVar(LVT_MOC_RUNOFF,source,trunoff,&
+!        vlevel=1,units="kg/m2s")
 
-  call LVT_logSingleDataStreamVar(LVT_MOC_SWNET,source,swnet,&
-       vlevel=1,units="W/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_QLE,source,qle,&
-       vlevel=1,units="W/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_QH,source,qh,&
-       vlevel=1,units="W/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_SNOWCOVER,source,frsno,&
-       vlevel=1,units="-")
-  call LVT_logSingleDataStreamVar(LVT_MOC_SNOWDEPTH,source,snod,&
-       vlevel=1,units="m")
-  call LVT_logSingleDataStreamVar(LVT_MOC_SWE,source,swe,&
-       vlevel=1,units="kg/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_QG,source,qg,&
-       vlevel=1,units="W/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_RNET,source,rnet,&
-       vlevel=1,units="W/m2")
-  call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,sfsm,&
-       vlevel=1,units="m3/m3")
-  call LVT_logSingleDataStreamVar(LVT_MOC_ROOTMOIST,source,rzsm,&
-       vlevel=1,units="m3/m3")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_SWNET,source,swnet,&
+!        vlevel=1,units="W/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_QLE,source,qle,&
+!        vlevel=1,units="W/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_QH,source,qh,&
+!        vlevel=1,units="W/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_SNOWCOVER,source,frsno,&
+!        vlevel=1,units="-")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_SNOWDEPTH,source,snod,&
+!        vlevel=1,units="m")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_SWE,source,swe,&
+!        vlevel=1,units="kg/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_QG,source,qg,&
+!        vlevel=1,units="W/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_RNET,source,rnet,&
+!        vlevel=1,units="W/m2")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,sfsm,&
+!        vlevel=1,units="m3/m3")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_ROOTMOIST,source,rzsm,&
+!        vlevel=1,units="m3/m3")
   call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source, prcp,&
        vlevel=1,units="kg/m2s")
-  call LVT_logSingleDataStreamVar(LVT_MOC_TAIRFORC,source, tair,&
-       vlevel=1,units="K")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_TAIRFORC,source, tair,&
+!        vlevel=1,units="K")
 
   do r=1,LVT_rc%lnr
      do c=1,LVT_rc%lnc
@@ -226,10 +227,10 @@ subroutine readMERRA2Obs(source)
   call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source, prcp,&
        vlevel=1,units="kg/m2")
 
-  call LVT_logSingleDataStreamVar(LVT_MOC_AVGSURFT,source,tskin,&
-       vlevel=1,units="K")
-  call LVT_logSingleDataStreamVar(LVT_MOC_RADT,source,tskin,&
-       vlevel=1,units="K")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_AVGSURFT,source,tskin,&
+!        vlevel=1,units="K")
+!   call LVT_logSingleDataStreamVar(LVT_MOC_RADT,source,tskin,&
+!        vlevel=1,units="K")
 
 end subroutine readMERRA2Obs
 
@@ -279,99 +280,98 @@ subroutine process_MERRA2data(source, yr, mo, da)
   inquire(file=trim(fname),exist=file_exists) 
   
   if(file_exists) then 
-     write(LVT_logunit,*) '[INFO] Reading MERRA2 file ',trim(fname)
      
      iret = nf90_open(path=trim(fname),mode=NF90_NOWRITE, &
           ncid = ftn)
      if(iret.eq.0) then 
         
-        call LVT_verify(nf90_inq_varid(ftn,"RUNOFF",qsid),&
-             'nf90_inq_varid failed for RUNOFF')
-        call LVT_verify(nf90_inq_varid(ftn,"BASEFLOW",qsbid),&
-             'nf90_inq_varid failed for BASEFLOW')
-        call LVT_verify(nf90_inq_varid(ftn,"SWLAND",swnetid),&
-             'nf90_inq_varid failed for SWLAND')
-        call LVT_verify(nf90_inq_varid(ftn,"LHLAND",qleid),&
-             'nf90_inq_varid failed for LHLAND')
-        call LVT_verify(nf90_inq_varid(ftn,"SHLAND",qhid),&
-             'nf90_inq_varid failed for SHLAND')
-        call LVT_verify(nf90_inq_varid(ftn,"FRSNO",frsnoid),&
-             'nf90_inq_varid failed for FRSNO')
-        call LVT_verify(nf90_inq_varid(ftn,"SNODP",snodid),&
-             'nf90_inq_varid failed for SNODP')
-        call LVT_verify(nf90_inq_varid(ftn,"SNOMAS",sweid),&
-             'nf90_inq_varid failed for SNOMAS')
-        call LVT_verify(nf90_inq_varid(ftn,"GHLAND",qgid),&
-             'nf90_inq_varid failed for GHLAND')
-        call LVT_verify(nf90_inq_varid(ftn,"SFMC",sfsmid),&
-             'nf90_inq_varid failed for SFMC')
-        call LVT_verify(nf90_inq_varid(ftn,"RZMC",rzsmid),&
-             'nf90_inq_varid failed for RZMC')
+!         call LVT_verify(nf90_inq_varid(ftn,"RUNOFF",qsid),&
+!              'nf90_inq_varid failed for RUNOFF')
+!         call LVT_verify(nf90_inq_varid(ftn,"BASEFLOW",qsbid),&
+!              'nf90_inq_varid failed for BASEFLOW')
+!         call LVT_verify(nf90_inq_varid(ftn,"SWLAND",swnetid),&
+!              'nf90_inq_varid failed for SWLAND')
+!         call LVT_verify(nf90_inq_varid(ftn,"LHLAND",qleid),&
+!              'nf90_inq_varid failed for LHLAND')
+!         call LVT_verify(nf90_inq_varid(ftn,"SHLAND",qhid),&
+!              'nf90_inq_varid failed for SHLAND')
+!         call LVT_verify(nf90_inq_varid(ftn,"FRSNO",frsnoid),&
+!              'nf90_inq_varid failed for FRSNO')
+!         call LVT_verify(nf90_inq_varid(ftn,"SNODP",snodid),&
+!              'nf90_inq_varid failed for SNODP')
+!         call LVT_verify(nf90_inq_varid(ftn,"SNOMAS",sweid),&
+!              'nf90_inq_varid failed for SNOMAS')
+!         call LVT_verify(nf90_inq_varid(ftn,"GHLAND",qgid),&
+!              'nf90_inq_varid failed for GHLAND')
+!         call LVT_verify(nf90_inq_varid(ftn,"SFMC",sfsmid),&
+!              'nf90_inq_varid failed for SFMC')
+!         call LVT_verify(nf90_inq_varid(ftn,"RZMC",rzsmid),&
+!              'nf90_inq_varid failed for RZMC')
 
-! Yeosang Yoon 
-!        call LVT_verify(nf90_inq_varid(ftn,"PRECTOTLAND",prcpid),&
-!             'nf90_inq_varid failed for PRECTOTLAND')
-        call LVT_verify(nf90_inq_varid(ftn,"TSURF",tskinid),&
-             'nf90_inq_varid failed for TSURF')
+! ! Yeosang Yoon 
+! !        call LVT_verify(nf90_inq_varid(ftn,"PRECTOTLAND",prcpid),&
+! !             'nf90_inq_varid failed for PRECTOTLAND')
+!         call LVT_verify(nf90_inq_varid(ftn,"TSURF",tskinid),&
+!              'nf90_inq_varid failed for TSURF')
         
-        call LVT_verify(nf90_get_var(ftn,qsid,qs),&
-             'Error in nf90_get_var RUNOFF')
-        call LVT_verify(nf90_get_var(ftn,qsbid,qsb),&
-             'Error in nf90_get_var BASEFLOW')
-        call LVT_verify(nf90_get_var(ftn,swnetid,swnet),&
-             'Error in nf90_get_var SWLAND')
-        call LVT_verify(nf90_get_var(ftn,qleid,qle),&
-             'Error in nf90_get_var LHLAND')
-        call LVT_verify(nf90_get_var(ftn,qhid,qh),&
-             'Error in nf90_get_var SHLAND')
-        call LVT_verify(nf90_get_var(ftn,frsnoid,frsno),&
-             'Error in nf90_get_var FRSNO')
-        call LVT_verify(nf90_get_var(ftn,snodid,snod),&
-             'Error in nf90_get_var SNODP')
-        call LVT_verify(nf90_get_var(ftn,sweid,swe),&
-             'Error in nf90_get_var SWE')
-        call LVT_verify(nf90_get_var(ftn,qgid,qg),&
-             'Error in nf90_get_var GHLAND')
-        call LVT_verify(nf90_get_var(ftn,sfsmid,sfsm),&
-             'Error in nf90_get_var SFMC')
-        call LVT_verify(nf90_get_var(ftn,rzsmid,rzsm),&
-             'Error in nf90_get_var RZMC')
-! Yeosang Yoon      
-!        call LVT_verify(nf90_get_var(ftn,prcpid,prcp),&
-!             'Error in nf90_get_var PRECTOTLAND')
-        call LVT_verify(nf90_get_var(ftn,tskinid,tskin),&
-             'Error in nf90_get_var TSURF')
+!         call LVT_verify(nf90_get_var(ftn,qsid,qs),&
+!              'Error in nf90_get_var RUNOFF')
+!         call LVT_verify(nf90_get_var(ftn,qsbid,qsb),&
+!              'Error in nf90_get_var BASEFLOW')
+!         call LVT_verify(nf90_get_var(ftn,swnetid,swnet),&
+!              'Error in nf90_get_var SWLAND')
+!         call LVT_verify(nf90_get_var(ftn,qleid,qle),&
+!              'Error in nf90_get_var LHLAND')
+!         call LVT_verify(nf90_get_var(ftn,qhid,qh),&
+!              'Error in nf90_get_var SHLAND')
+!         call LVT_verify(nf90_get_var(ftn,frsnoid,frsno),&
+!              'Error in nf90_get_var FRSNO')
+!         call LVT_verify(nf90_get_var(ftn,snodid,snod),&
+!              'Error in nf90_get_var SNODP')
+!         call LVT_verify(nf90_get_var(ftn,sweid,swe),&
+!              'Error in nf90_get_var SWE')
+!         call LVT_verify(nf90_get_var(ftn,qgid,qg),&
+!              'Error in nf90_get_var GHLAND')
+!         call LVT_verify(nf90_get_var(ftn,sfsmid,sfsm),&
+!              'Error in nf90_get_var SFMC')
+!         call LVT_verify(nf90_get_var(ftn,rzsmid,rzsm),&
+!              'Error in nf90_get_var RZMC')
+! ! Yeosang Yoon      
+! !        call LVT_verify(nf90_get_var(ftn,prcpid,prcp),&
+! !             'Error in nf90_get_var PRECTOTLAND')
+!         call LVT_verify(nf90_get_var(ftn,tskinid,tskin),&
+!              'Error in nf90_get_var TSURF')
         
         call LVT_verify(nf90_close(ftn))
 
-        do k=1,24
-           call interp_merra2var2d(source,qs(:,:,k),&
-                merra2obs(source)%qs(:,:,k))
-           call interp_merra2var2d(source,qsb(:,:,k),&
-                merra2obs(source)%qsb(:,:,k))
-           call interp_merra2var2d(source,swnet(:,:,k),&
-                merra2obs(source)%swnet(:,:,k))
-           call interp_merra2var2d(source,qle(:,:,k),&
-                merra2obs(source)%qle(:,:,k))
-           call interp_merra2var2d(source,qh(:,:,k),&
-                merra2obs(source)%qh(:,:,k))
-           call interp_merra2var2d(source,frsno(:,:,k),&
-                merra2obs(source)%frsno(:,:,k))
-           call interp_merra2var2d(source,snod(:,:,k),&
-                merra2obs(source)%snod(:,:,k))
-           call interp_merra2var2d(source,swe(:,:,k),&
-                merra2obs(source)%swe(:,:,k))
-           call interp_merra2var2d(source,qg(:,:,k),&
-                merra2obs(source)%qg(:,:,k))
-           call interp_merra2var2d(source,sfsm(:,:,k),&
-                merra2obs(source)%sfsm(:,:,k))
-           call interp_merra2var2d(source,rzsm(:,:,k),&
-                merra2obs(source)%rzsm(:,:,k))
-           call interp_merra2var2d(source,prcp(:,:,k),&
-                merra2obs(source)%prcp(:,:,k))
-           call interp_merra2var2d(source,tskin(:,:,k),&
-                merra2obs(source)%tskin(:,:,k))
-        enddo
+!         do k=1,24
+!            call interp_merra2var2d(source,qs(:,:,k),&
+!                 merra2obs(source)%qs(:,:,k))
+!            call interp_merra2var2d(source,qsb(:,:,k),&
+!                 merra2obs(source)%qsb(:,:,k))
+!            call interp_merra2var2d(source,swnet(:,:,k),&
+!                 merra2obs(source)%swnet(:,:,k))
+!            call interp_merra2var2d(source,qle(:,:,k),&
+!                 merra2obs(source)%qle(:,:,k))
+!            call interp_merra2var2d(source,qh(:,:,k),&
+!                 merra2obs(source)%qh(:,:,k))
+!            call interp_merra2var2d(source,frsno(:,:,k),&
+!                 merra2obs(source)%frsno(:,:,k))
+!            call interp_merra2var2d(source,snod(:,:,k),&
+!                 merra2obs(source)%snod(:,:,k))
+!            call interp_merra2var2d(source,swe(:,:,k),&
+!                 merra2obs(source)%swe(:,:,k))
+!            call interp_merra2var2d(source,qg(:,:,k),&
+!                 merra2obs(source)%qg(:,:,k))
+!            call interp_merra2var2d(source,sfsm(:,:,k),&
+!                 merra2obs(source)%sfsm(:,:,k))
+!            call interp_merra2var2d(source,rzsm(:,:,k),&
+!                 merra2obs(source)%rzsm(:,:,k))
+!            call interp_merra2var2d(source,prcp(:,:,k),&
+!                 merra2obs(source)%prcp(:,:,k))
+!            call interp_merra2var2d(source,tskin(:,:,k),&
+!                 merra2obs(source)%tskin(:,:,k))
+!         enddo
      endif
   end if
 
@@ -400,22 +400,23 @@ subroutine process_MERRA2data(source, yr, mo, da)
                 'nf90_get_var failed for prectot (flx) in read_merra2')
         endif
         
-        call LVT_verify(nf90_inq_varid(ftn_flx,'TLML',tairid),&
-             'nf90_inq_varid failed for TLML in read_merra2')        
-        call LVT_verify(nf90_get_var(ftn_flx,tairid,tair),&
-             'nf90_get_var failed for tlml in read_merra2')
+        !call LVT_verify(nf90_inq_varid(ftn_flx,'TLML',tairid),&
+        !     'nf90_inq_varid failed for TLML in read_merra2')        
+        !call LVT_verify(nf90_get_var(ftn_flx,tairid,tair),&
+        !     'nf90_get_var failed for tlml in read_merra2')
 
         call LVT_verify(nf90_close(ftn_flx))
 
         do k=1,24
-           call interp_merra2var2d(source,tair(:,:,k),&
-                merra2obs(source)%tair(:,:,k))
+           !call interp_merra2var2d(source,tair(:,:,k),&
+           !     merra2obs(source)%tair(:,:,k))
 
            call interp_merra2var2d_pcp(source,prcp(:,:,k),&
                 merra2obs(source)%prcp(:,:,k),&
                 MERRA2obs(source)%usescalef)
         enddo
      endif
+
   end if
  !-----------------------------------------------------------------
 
@@ -650,7 +651,8 @@ subroutine interp_merra2var2d_pcp(source, var_inp,var_out,usescalef)
 !       close(100)
 !       print*,'here'
 !       stop
-
+    else
+       continue
     endif
     
   

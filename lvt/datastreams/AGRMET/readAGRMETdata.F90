@@ -168,6 +168,7 @@ subroutine readAGRMETdata(source)
   integer                      :: pid  ! EMK
   integer                      :: tid  ! EMK
   integer                      :: lid  ! EMK
+  logical :: conserv ! EMK
 
   integer                      :: status
 
@@ -207,7 +208,9 @@ subroutine readAGRMETdata(source)
   mo1 = LVT_rc%dmo(source)
   da1 = LVT_rc%dda(source)
   hr1 = LVT_rc%dhr(source)
-  mn1 = 0
+  !mn1 = 0
+  mn1 = LVT_rc%dmn(source) ! EMK Fix for IMERG
+
   ss1 = 0
   
   swd = 0 
@@ -277,7 +280,7 @@ subroutine readAGRMETdata(source)
      call LVT_verify(status)  
 
      call create_agrmetdata_filename(source, &
-          yr2, mo2, da2, hr2, filename)
+          yr2, mo2, da2, hr2, mn2, filename)
 
      inquire(file=trim(filename),exist=file_exists)
      
@@ -564,67 +567,71 @@ subroutine readAGRMETdata(source)
      time2 = time2 + agrmetdata(source)%ts
   end do
 
-  call interp_agrmetvar(source, nc,nr, swd, nswd, varfield)
-  call LVT_logSingleDataStreamVar(LVT_MOC_swdownforc,source,varfield,vlevel=1,units="W/m2")
-
-  call interp_agrmetvar(source,nc,nr, lwd, nlwd, varfield)
-  call LVT_logSingleDataStreamVar(LVT_MOC_lwdownforc,source,varfield,vlevel=1,units="W/m2")
-
-  call interp_agrmetvar(source,nc,nr, rainf, nrainf, varfield)
+  ! Use budget interpolation for precip when downscaling
+  conserv = .true.
+  call interp_agrmetvar(source,nc,nr, rainf, nrainf, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_totalprecip,source,varfield,vlevel=1,units="kg/m2")
 
-  call interp_agrmetvar(source,nc,nr, tair, ntair, varfield)
+  ! Use bilinear interpolation when upscaling.
+  conserv = .false.
+  call interp_agrmetvar(source, nc,nr, swd, nswd, varfield, conserv)
+  call LVT_logSingleDataStreamVar(LVT_MOC_swdownforc,source,varfield,vlevel=1,units="W/m2")
+
+  call interp_agrmetvar(source,nc,nr, lwd, nlwd, varfield, conserv)
+  call LVT_logSingleDataStreamVar(LVT_MOC_lwdownforc,source,varfield,vlevel=1,units="W/m2")
+
+  call interp_agrmetvar(source,nc,nr, tair, ntair, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_tairforc,source,varfield,vlevel=1,units="K")
 
-  call interp_agrmetvar(source,nc,nr, qle, nqle, varfield)
+  call interp_agrmetvar(source,nc,nr, qle, nqle, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_qle,source,varfield,vlevel=1,units="W/m2")
 
-  call interp_agrmetvar(source,nc,nr, qh, nqh, varfield)
+  call interp_agrmetvar(source,nc,nr, qh, nqh, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_qh,source,varfield,vlevel=1,units="W/m2")
 
-  call interp_agrmetvar(source,nc,nr, qg, nqg, varfield)
+  call interp_agrmetvar(source,nc,nr, qg, nqg, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_qg,source,varfield,vlevel=1,units="W/m2",dir='DN')
 
-  call interp_agrmetvar(source,nc,nr, swe, nswe, varfield)
+  call interp_agrmetvar(source,nc,nr, swe, nswe, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_swe,source,varfield,vlevel=1,units="kg/m2")
 
-  call interp_agrmetvar(source,nc,nr, snod, nsnod, varfield)
+  call interp_agrmetvar(source,nc,nr, snod, nsnod, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_snowdepth,source,varfield,vlevel=1,units="m")
 
-  call interp_agrmetvar(source,nc,nr, sm1, nsm1, varfield)
+  call interp_agrmetvar(source,nc,nr, sm1, nsm1, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soilmoist,source,varfield,units="m3/m3",&
        vlevel = 1)
 
-  call interp_agrmetvar(source,nc,nr, sm2, nsm2, varfield)
+  call interp_agrmetvar(source,nc,nr, sm2, nsm2, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soilmoist,source,varfield,units="m3/m3",&
        vlevel = 2)
 
-  call interp_agrmetvar(source,nc,nr, sm3, nsm3, varfield)
+  call interp_agrmetvar(source,nc,nr, sm3, nsm3, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soilmoist,source,varfield,units="m3/m3",&
        vlevel = 3)
 
-  call interp_agrmetvar(source,nc,nr, sm4, nsm4, varfield)
+  call interp_agrmetvar(source,nc,nr, sm4, nsm4, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soilmoist,source,varfield,units="m3/m3",&
        vlevel = 4)
 
-  call interp_agrmetvar(source,nc,nr, st1, nst1, varfield)
+  call interp_agrmetvar(source,nc,nr, st1, nst1, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soiltemp,source,varfield,units="K",&
        vlevel = 1)
 
-  call interp_agrmetvar(source,nc,nr, st2, nst2, varfield)
+  call interp_agrmetvar(source,nc,nr, st2, nst2, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soiltemp,source,varfield,units="K",&
        vlevel = 2)
 
-  call interp_agrmetvar(source,nc,nr, st3, nst3, varfield)
+  call interp_agrmetvar(source,nc,nr, st3, nst3, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soiltemp,source,varfield,units="K",&
        vlevel = 3)
 
-  call interp_agrmetvar(source,nc,nr, st4, nst4, varfield)
+  call interp_agrmetvar(source,nc,nr, st4, nst4, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_soiltemp,source,varfield,units="K",&
        vlevel = 4)
 
   ! EMK...Support specific humidity
-  call interp_agrmetvar(source,nc,nr, qair, nqair, varfield)
+  call interp_agrmetvar(source,nc,nr, qair, nqair, varfield, conserv)
   call LVT_logSingleDataStreamVar(LVT_MOC_qairforc,source,varfield,vlevel=1,&
        units="kg/kg")
 
@@ -636,11 +643,12 @@ end subroutine readAGRMETdata
 !  \label{interp_agrmetvar}
 !
 ! !INTERFACE: 
-subroutine interp_agrmetvar(source,nc, nr, var_input, nvar_input, var_output)
+subroutine interp_agrmetvar(source,nc, nr, var_input, nvar_input, var_output, &
+     conserv)
 ! 
 ! !USES:   
   use LVT_logMod, only: LVT_logunit
-  use LVT_coreMod,   only : LVT_rc
+  use LVT_coreMod,   only : LVT_rc, LVT_isAtAfinerResolution
   use AGRMET_dataMod, only : agrmetdata
 
   implicit none
@@ -654,6 +662,7 @@ subroutine interp_agrmetvar(source,nc, nr, var_input, nvar_input, var_output)
   integer            :: nvar_input(nc*nr)
   logical*1          :: lb(nc*nr)
   real               :: var_output(LVT_rc%lnc, LVT_rc%lnr)
+  logical, intent(in) :: conserv
 !
 ! !DESCRIPTION: 
 ! 
@@ -697,13 +706,36 @@ subroutine interp_agrmetvar(source,nc, nr, var_input, nvar_input, var_output)
      enddo
   enddo
 
-  call bilinear_interp(LVT_rc%gridDesc,lb, var_input,&
-       lo,go,nc*nr,LVT_rc%lnc*LVT_rc%lnr,&
-       agrmetdata(source)%rlat,agrmetdata(source)%rlon,&
-       agrmetdata(source)%w11,agrmetdata(source)%w12,&
-       agrmetdata(source)%w21,agrmetdata(source)%w22,&
-       agrmetdata(source)%n11,agrmetdata(source)%n12,&
-       agrmetdata(source)%n21,agrmetdata(source)%n22,LVT_rc%udef,iret)
+  ! EMK...Use budget or bilinear interpolation if AGRMET is at 
+  ! coarser resolution than the analysis grid; otherwise, use
+  ! upscale averaging.
+  if (LVT_isAtAFinerResolution(agrmetdata(source)%datares)) then
+     if (conserv) then
+        call conserv_interp(LVT_rc%gridDesc,lb,var_input, &
+             lo,go, nc*nr, LVT_rc%lnc*LVT_rc%lnr, &
+             agrmetdata(source)%rlat, agrmetdata(source)%rlon, &
+             agrmetdata(source)%w112, agrmetdata(source)%w122, &
+             agrmetdata(source)%w212, agrmetdata(source)%w222, &
+             agrmetdata(source)%n112, agrmetdata(source)%n122, &
+             agrmetdata(source)%n212, agrmetdata(source)%n222, &
+             LVT_rc%udef, iret)     
+     else
+        call bilinear_interp(LVT_rc%gridDesc,lb, var_input,&
+             lo,go,nc*nr,LVT_rc%lnc*LVT_rc%lnr,&
+             agrmetdata(source)%rlat,agrmetdata(source)%rlon,&
+             agrmetdata(source)%w11,agrmetdata(source)%w12,&
+             agrmetdata(source)%w21,agrmetdata(source)%w22,&
+             agrmetdata(source)%n11,agrmetdata(source)%n12,&
+             agrmetdata(source)%n21,agrmetdata(source)%n22,LVT_rc%udef,iret)
+     end if
+
+  else
+     call upscaleByAveraging(&
+          nc*nr, &
+          LVT_rc%lnc*LVT_rc%lnr, LVT_rc%udef, &
+          agrmetdata(source)%n11, lb, &
+          var_input, lo, go)
+  end if
   
   do r=1,LVT_rc%lnr
      do c=1,LVT_rc%lnc
@@ -718,7 +750,7 @@ end subroutine interp_agrmetvar
 ! \label{create_agrmetdata_filename}
 !
 ! !INTERFACE: 
-subroutine create_agrmetdata_filename(source, yr, mo, da, hr, filename)
+subroutine create_agrmetdata_filename(source, yr, mo, da, hr, mn, filename)
 ! !USES:   
   use AGRMET_dataMod
   use LVT_logMod, only: LVT_endrun, LVT_logunit
@@ -732,6 +764,7 @@ subroutine create_agrmetdata_filename(source, yr, mo, da, hr, filename)
   integer           :: mo
   integer           :: da
   integer           :: hr
+  integer           :: mn
   character(len=*)  :: filename
 
 !
@@ -759,11 +792,13 @@ subroutine create_agrmetdata_filename(source, yr, mo, da, hr, filename)
   character*2       :: fmo
   character*2       :: fda
   character*2       :: fhr
+  character*2       :: fmn
 
   write(unit=fyr, fmt='(i4.4)') yr
   write(unit=fmo, fmt='(i2.2)') mo
   write(unit=fda, fmt='(i2.2)') da
   write(unit=fhr, fmt='(i2.2)') hr
+  write(unit=fmn, fmt='(i2.2)') mn
 
   if (trim(agrmetdata(source)%gridname) == "GLOBAL") then
      ! Old 0.25 deg deterministic run
@@ -774,7 +809,7 @@ subroutine create_agrmetdata_filename(source, yr, mo, da, hr, filename)
        '_DC.'//trim(agrmetdata(source)%data_category)//'_GP.LIS_GR'//&
        '.C0P25DEG_AR.'//trim(agrmetdata(source)%area_of_data)//&
        '_PA.03-HR-SUM_DD.'//&
-       trim(fyr)//trim(fmo)//trim(fda)//'_DT.'//trim(fhr)//'00_DF.GR1'
+       trim(fyr)//trim(fmo)//trim(fda)//'_DT.'//trim(fhr)//trim(fmn)//'_DF.GR1'
   else if (trim(agrmetdata(source)%gridname) == "n1280e") then
      ! In-house Bratseth run matching GALWEM n1280e domain
      filename = trim(agrmetdata(source)%odir)//'/'//trim(fyr)//trim(fmo)//trim(fda)//'/'&
@@ -784,8 +819,7 @@ subroutine create_agrmetdata_filename(source, yr, mo, da, hr, filename)
        '_DC.'//trim(agrmetdata(source)%data_category)//'_GP.LIS_GR'//&
        '.C0P09DEG_AR.'//trim(agrmetdata(source)%area_of_data)//&
        '_PA.03-HR-SUM_DD.'//&
-       trim(fyr)//trim(fmo)//trim(fda)//'_DT.'//trim(fhr)//'00_DF.GR1'
-       
+       trim(fyr)//trim(fmo)//trim(fda)//'_DT.'//trim(fhr)//trim(fmn)//'_DF.GR1'
   else
      write(LVT_logunit,*) &
           '[ERR] Internal error, unknown AGRMET data gridname ', &

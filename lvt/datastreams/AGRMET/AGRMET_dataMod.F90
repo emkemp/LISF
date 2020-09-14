@@ -46,10 +46,14 @@ module AGRMET_dataMod
 !EOP
   type, public :: agrmetdatadec
      character*100           :: odir
+     real :: datares
      real*8                  :: changetime1,changetime2
      real, allocatable           :: rlat(:)
      real, allocatable           :: rlon(:)
+     ! Used for upscale averaging and bilinear interpolation
      integer, allocatable        :: n11(:)
+
+     ! Used for bilinear interpolation (non-precip)
      integer, allocatable        :: n12(:)
      integer, allocatable        :: n21(:)
      integer, allocatable        :: n22(:)     
@@ -57,6 +61,16 @@ module AGRMET_dataMod
      real,    allocatable        :: w12(:)
      real,    allocatable        :: w21(:)
      real,    allocatable        :: w22(:)
+
+     ! Used with budget interpolation (precip)
+     integer, allocatable        :: n112(:,:)
+     integer, allocatable        :: n122(:,:)
+     integer, allocatable        :: n212(:,:)
+     integer, allocatable        :: n222(:,:)     
+     real,    allocatable        :: w112(:,:)
+     real,    allocatable        :: w122(:,:)
+     real,    allocatable        :: w212(:,:)
+     real,    allocatable        :: w222(:,:)
 
      character*20           :: security_class
      character*20           :: distribution_class
@@ -155,15 +169,6 @@ contains
     allocate(agrmetdata(i)%rlat(LVT_rc%lnc*LVT_rc%lnr))
     allocate(agrmetdata(i)%rlon(LVT_rc%lnc*LVT_rc%lnr))
 
-    allocate(agrmetdata(i)%n11(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%n12(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%n21(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%n22(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%w11(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%w12(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%w21(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(agrmetdata(i)%w22(LVT_rc%lnc*LVT_rc%lnr))
-
     ! Sanity check the grid type
     ! NOTE:  557WW refers to the 0.25 deg deterministic product as "GLOBAL"
     ! even though it excludes Antarctica
@@ -183,7 +188,8 @@ contains
 
        agrmetdata(i)%nc = 1440
        agrmetdata(i)%nr =  600
-       
+       agrmetdata(i)%datares = 0.250
+
     else if (trim(agrmetdata(i)%gridname) == "n1280e") then
        ! NOTE:  This is the in-house Bratseth reanalysis produced at rough
        ! 0.09 deg resolution.  The name is taken from the global configuration
@@ -203,6 +209,8 @@ contains
 
        agrmetdata(i)%nc = 2560
        agrmetdata(i)%nr = 1920
+       agrmetdata(i)%datares = 0.140625
+
     else
        write(LVT_logunit,*)'[ERR] Invalid AGRMET grid type specified!'
        write(LVT_logunit,*)'Currently supports GLOBAL and n1280e'
@@ -210,14 +218,73 @@ contains
        call LVT_endrun()
     end if
 
-    write(LVT_logunit,*)'EMK: AGRMET calling bilinear_interp_input...'
-    call bilinear_interp_input(gridDesci,LVT_rc%gridDesc,&
-         LVT_rc%lnc*LVT_rc%lnr, &
-         agrmetdata(i)%rlat, agrmetdata(i)%rlon,&
-         agrmetdata(i)%n11, agrmetdata(i)%n12, &
-         agrmetdata(i)%n21, agrmetdata(i)%n22, & 
-         agrmetdata(i)%w11, agrmetdata(i)%w12, &
-         agrmetdata(i)%w21, agrmetdata(i)%w22)
+    ! EMK...Use budget-bilinear interpolation if AGRMET is at coarser
+    ! resolution than the analysis grid; otherwise, use upscale averaging.
+    if (LVT_isAtAFinerResolution(agrmetdata(i)%datares)) then
+
+       ! Used only with bilinear interpolation (non-precip)
+       allocate(agrmetdata(i)%n11(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%n12(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%n21(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%n22(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%w11(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%w12(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%w21(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(agrmetdata(i)%w22(LVT_rc%lnc*LVT_rc%lnr))
+
+       agrmetdata(i)%n11 = 0
+       agrmetdata(i)%n12 = 0
+       agrmetdata(i)%n21 = 0
+       agrmetdata(i)%n22 = 0
+       agrmetdata(i)%w11 = 0
+       agrmetdata(i)%w12 = 0
+       agrmetdata(i)%w21 = 0
+       agrmetdata(i)%w22 = 0
+
+       call bilinear_interp_input(gridDesci,LVT_rc%gridDesc,&
+            LVT_rc%lnc*LVT_rc%lnr, &
+            agrmetdata(i)%rlat, agrmetdata(i)%rlon,&
+            agrmetdata(i)%n11, agrmetdata(i)%n12, &
+            agrmetdata(i)%n21, agrmetdata(i)%n22, & 
+            agrmetdata(i)%w11, agrmetdata(i)%w12, &
+            agrmetdata(i)%w21, agrmetdata(i)%w22)
+
+       ! Used only with budget interpolation (precip)
+       allocate(agrmetdata(i)%n112(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%n122(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%n212(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%n222(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%w112(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%w122(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%w212(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(agrmetdata(i)%w222(LVT_rc%lnc*LVT_rc%lnr,25))
+       
+       agrmetdata(i)%n112 = 0
+       agrmetdata(i)%n122 = 0
+       agrmetdata(i)%n212 = 0
+       agrmetdata(i)%n222 = 0
+       agrmetdata(i)%w112 = 0
+       agrmetdata(i)%w122 = 0
+       agrmetdata(i)%w212 = 0
+       agrmetdata(i)%w222 = 0
+       call conserv_interp_input(gridDesci,LVT_rc%gridDesc,&
+            LVT_rc%lnc*LVT_rc%lnr, &
+            agrmetdata(i)%rlat, agrmetdata(i)%rlon,&
+            agrmetdata(i)%n112, agrmetdata(i)%n122, &
+            agrmetdata(i)%n212, agrmetdata(i)%n222, & 
+            agrmetdata(i)%w112, agrmetdata(i)%w122, &
+            agrmetdata(i)%w212, agrmetdata(i)%w222)
+    else
+       
+       ! Used only with upscale averaging
+       allocate(agrmetdata(i)%n11(agrmetdata(i)%nc*agrmetdata(i)%nr))
+       agrmetdata(i)%n11 = 0
+       
+       call upscaleByAveraging_input(gridDesci,LVT_rc%gridDesc,&
+            agrmetdata(i)%nc*agrmetdata(i)%nr, &
+            LVT_rc%lnc*LVT_rc%lnr, &
+            agrmetdata(i)%n11)
+    end if
 
     call ESMF_TimeIntervalSet(agrmetdata(i)%ts, s = 10800, &
          rc=status)

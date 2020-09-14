@@ -107,6 +107,11 @@
     real                    :: qsb_ip(LVT_rc%lnc, LVT_rc%lnr)
     real                    :: trunoff_ip(LVT_rc%lnc, LVT_rc%lnr)
 
+    logical :: conserv ! EMK
+
+    ! EMK...Make sure NLDAS2 only fetched at top of hour
+    if (LVT_rc%dmn(source) .ne. 0) return
+
     ! GRIB IDs for NLDAS-2 forcing
     precip_f_index = 61
     tair_f_index = 11
@@ -749,17 +754,21 @@
     endif
 
     if (nldas2data(source)%lsm.ne."SAC") then
-       call interp_nldas2var(source,nc,nr,swnet,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,swnet,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SWNET,source,varfield,  &
                 vlevel=1,units="W/m2")
-       call interp_nldas2var(source,nc,nr,lwnet,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,lwnet,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_LWNET,source,varfield,  &
                 vlevel=1,units="W/m2")
-       call interp_nldas2var(source,nc,nr,qle,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,qle,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_QLE,source,varfield,    &
                 vlevel=1,units="W/m2")
        rnet = varfield
-       call interp_nldas2var(source,nc,nr,qh,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,qh,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_QH,source,varfield,     &
                 vlevel=1,units="W/m2")
        ! Use LVT grid dimensions for these arrays
@@ -770,7 +779,8 @@
              endif
           enddo
        enddo
-       call interp_nldas2var(source,nc,nr,qg,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,qg,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_QG,source,varfield,     &
                 vlevel=1,units="W/m2")
        ! Use LVT grid dimensions for these arrays
@@ -783,7 +793,8 @@
        enddo
        call LVT_logSingleDataStreamVar(LVT_MOC_RNET,source,rnet,       &
                 vlevel=1,units="W/m2")
-       call interp_nldas2var(source,nc,nr,avgsurft,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,avgsurft,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_AVGSURFT,source,varfield,&
                 vlevel=1,units="K")
        call LVT_logSingleDataStreamVar(LVT_MOC_RADT,source,varfield,   &
@@ -797,7 +808,8 @@
              enddo
           enddo
        endif
-       call interp_nldas2var(source,nc,nr,albedo,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,albedo,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_ALBEDO,source,varfield, &
                 vlevel=1,units="-")
     endif
@@ -813,7 +825,8 @@
              enddo
           enddo
        endif
-       call interp_nldas2var(source,nc,nr,totalp,varfield)
+       conserv=.true.
+       call interp_nldas2var(source,nc,nr,totalp,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source,varfield,&
                 vlevel=1,units="kg/m2")
        if (LVT_MOC_TOTALPRECIP(source).ge.1) then
@@ -825,12 +838,14 @@
              enddo
           enddo
        endif
-       call interp_nldas2var(source,nc,nr,totalp,varfield)
+       conserv=.true.
+       call interp_nldas2var(source,nc,nr,totalp,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source,varfield,&
                 vlevel=1,units="kg/m2s")
     endif
 
-    call interp_nldas2var(source,nc,nr,snowf,varfield)
+    conserv=.true.
+    call interp_nldas2var(source,nc,nr,snowf,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SNOWF,source,varfield,     &
              vlevel=1,units="kg/m2")
     if (LVT_MOC_SNOWF(source).ge.1) then
@@ -842,10 +857,12 @@
           enddo
        enddo
     endif
-    call interp_nldas2var(source,nc,nr,snowf,varfield)
+    conserv=.true.
+    call interp_nldas2var(source,nc,nr,snowf,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SNOWF,source,varfield,     &
              vlevel=1,units="kg/m2s")
-    call interp_nldas2var(source,nc,nr,rainf,varfield)
+    conserv=.true.
+    call interp_nldas2var(source,nc,nr,rainf,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_RAINF,source,varfield,     &
              vlevel=1,units="kg/m2")
     if (LVT_MOC_RAINF(source).ge.1) then
@@ -857,7 +874,8 @@
           enddo
        enddo
     endif
-    call interp_nldas2var(source,nc,nr,rainf,varfield)
+    conserv=.true.
+    call interp_nldas2var(source,nc,nr,rainf,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_RAINF,source,varfield,     &
              vlevel=1,units="kg/m2s")
 
@@ -870,7 +888,8 @@
           enddo
        enddo
     endif
-    call interp_nldas2var(source,nc,nr,evap,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,evap,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_EVAP,source,varfield,      &
              vlevel=1,units="kg/m2s")
 
@@ -883,7 +902,8 @@
           enddo
        enddo
     endif
-    call interp_nldas2var(source,nc,nr,qs,qs_ip)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,qs,qs_ip,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_QS,source,qs_ip,           &
              vlevel=1,units="kg/m2s")
     if ((LVT_MOC_QSB(source).ge.1).or.(LVT_MOC_RUNOFF(source).ge.1)) then
@@ -895,7 +915,8 @@
           enddo
        enddo
     endif
-    call interp_nldas2var(source,nc,nr,qsb,qsb_ip)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,qsb,qsb_ip,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_QSB,source,qsb_ip,         &
              vlevel=1,units="kg/m2s")
     ! Use LVT grid dimensions for these arrays
@@ -948,7 +969,9 @@
              endif
           enddo
        enddo
-       call interp_nldas2var(source,nc,nr,ecanopoverqle,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,ecanopoverqle,varfield, &
+            conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_ECANOPOVERQLE,source,varfield,&
                 vlevel=1,units="-")
     endif
@@ -968,7 +991,8 @@
              endif
           enddo
        enddo
-       call interp_nldas2var(source,nc,nr,tvegoverqle,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,tvegoverqle,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TVEGOVERQLE,source,varfield,&
                 vlevel=1,units="-")
     endif
@@ -988,7 +1012,9 @@
              endif
           enddo
        enddo
-       call interp_nldas2var(source,nc,nr,esoiloverqle,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,esoiloverqle,varfield, &
+            conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_ESOILOVERQLE,source,varfield,&
                 vlevel=1,units="-")
     endif
@@ -1032,44 +1058,56 @@
              enddo
           enddo
        endif
-       call interp_nldas2var(source,nc,nr,tws,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,tws,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TWS,source,varfield,    &
                 vlevel=1,units="mm")
     endif
 
-    call interp_nldas2var(source,nc,nr,qsm,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,qsm,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_QSM,source,varfield,       &
              vlevel=1,units="kg/m2s")
-    call interp_nldas2var(source,nc,nr,swe,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,swe,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SWE,source,varfield,       &
              vlevel=1,units="kg/m2")
-    call interp_nldas2var(source,nc,nr,snowdepth,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,snowdepth,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SNOWDEPTH,source,varfield, &
              vlevel=1,units="m")
-    call interp_nldas2var(source,nc,nr,snowcover,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,snowcover,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SNOWCOVER,source,varfield, &
              vlevel=1,units="-")
-    call interp_nldas2var(source,nc,nr,potevap,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,potevap,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_POTEVAP,source,varfield,   &
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,ecanop,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,ecanop,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_ECANOP,source,varfield,    &
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,tveg,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,tveg,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_TVEG,source,varfield,      &
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,esoil,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,esoil,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_ESOIL,source,varfield,     &
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,canopint,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,canopint,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_CANOPINT,source,varfield,  &
              vlevel=1,units="kg/m2")
-    call interp_nldas2var(source,nc,nr,subsnow,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,subsnow,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SUBSNOW,source,varfield,   &
              vlevel=1,units="W/m2")
     if ((nldas2data(source)%lsm.eq."FORCINGA").or.                     &
         (nldas2data(source)%lsm.eq."FORCINGB")) then
-       call interp_nldas2var(source,nc,nr,precip_f,varfield)
+       conserv=.true.
+       call interp_nldas2var(source,nc,nr,precip_f,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source,varfield,&
                 vlevel=1,units="kg/m2")
        if (LVT_MOC_TOTALPRECIP(source).ge.1) then
@@ -1081,38 +1119,49 @@
              enddo
           enddo
        endif
-       call interp_nldas2var(source,nc,nr,precip_f,varfield)
+       conserv=.true.
+       call interp_nldas2var(source,nc,nr,precip_f,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_TOTALPRECIP,source,varfield,&
                 vlevel=1,units="kg/m2s")
     endif
-    call interp_nldas2var(source,nc,nr,tair_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,tair_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_TAIRFORC,source,varfield,  &
              vlevel=1,units="K")
-    call interp_nldas2var(source,nc,nr,swdown_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,swdown_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_SWDOWNFORC,source,varfield,&
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,lwdown_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,lwdown_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_LWDOWNFORC,source,varfield,&
              vlevel=1,units="W/m2")
-    call interp_nldas2var(source,nc,nr,pet_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,pet_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_PETFORC,source,varfield,   &
              vlevel=1,units="kg/m2")
-    call interp_nldas2var(source,nc,nr,cape_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,cape_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_CAPEFORC,source,varfield,  &
              vlevel=1,units="J/kg")
-    call interp_nldas2var(source,nc,nr,psurf_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,psurf_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_PSURFFORC,source,varfield, &
              vlevel=1,units="Pa")
-    call interp_nldas2var(source,nc,nr,qair_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,qair_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_QAIRFORC,source,varfield,  &
              vlevel=1,units="kg/kg")
-    call interp_nldas2var(source,nc,nr,crain_f,varfield)
+    conserv=.true.
+    call interp_nldas2var(source,nc,nr,crain_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_CRAINFFORC,source,varfield,&
              vlevel=1,units="kg/m2")
-    call interp_nldas2var(source,nc,nr,nwind_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,nwind_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_NWINDFORC,source,varfield, &
              vlevel=1,units="m/s")
-    call interp_nldas2var(source,nc,nr,ewind_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,ewind_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_EWINDFORC,source,varfield, &
              vlevel=1,units="m/s")
 
@@ -1126,7 +1175,8 @@
           endif
        enddo ! c
     enddo ! r
-    call interp_nldas2var(source,nc,nr,wind_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,wind_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_WINDFORC,source,varfield,vlevel=1,   &
          units="m/s")
 
@@ -1141,11 +1191,13 @@
           endif
        enddo ! c
     enddo ! r
-    call interp_nldas2var(source,nc,nr,wind_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,wind_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_WINDFORC,source,varfield,  &
              vlevel=1,units="km/day")
 
-    call interp_nldas2var(source,nc,nr,fheight_f,varfield)
+    conserv=.false.
+    call interp_nldas2var(source,nc,nr,fheight_f,varfield,conserv)
     call LVT_logSingleDataStreamVar(LVT_MOC_FHEIGHTFORC,source,varfield,&
              vlevel=1,units="m")
 
@@ -1201,64 +1253,78 @@
     endif
 
     if (nldas2data(source)%smvol) then
-       call interp_nldas2var(source,nc,nr,sml1,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml1,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=1,units="m3/m3")
-       call interp_nldas2var(source,nc,nr,sml2,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml2,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=2,units="m3/m3")
-       call interp_nldas2var(source,nc,nr,sml3,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml3,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=3,units="m3/m3")
        if ((nldas2data(source)%lsm.eq."NOAH").or.                      &
            (nldas2data(source)%lsm.eq."SAC")) then
-          call interp_nldas2var(source,nc,nr,sml4,varfield)
+          conserv=.false.
+          call interp_nldas2var(source,nc,nr,sml4,varfield,conserv)
           call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                    vlevel=4,units="m3/m3")
        endif
-       call interp_nldas2var(source,nc,nr,rootmoist,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,rootmoist,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_ROOTMOIST,source,varfield,&
                 vlevel=1,units="m3/m3")
     else
-       call interp_nldas2var(source,nc,nr,sml1,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml1,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=1,units="kg/m2")
-       call interp_nldas2var(source,nc,nr,sml2,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml2,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=2,units="kg/m2")
-       call interp_nldas2var(source,nc,nr,sml3,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,sml3,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                 vlevel=3,units="kg/m2")
        if ((nldas2data(source)%lsm.eq."NOAH").or.                      &
            (nldas2data(source)%lsm.eq."SAC")) then
-          call interp_nldas2var(source,nc,nr,sml4,varfield)
+          conserv=.false.
+          call interp_nldas2var(source,nc,nr,sml4,varfield,conserv)
           call LVT_logSingleDataStreamVar(LVT_MOC_SOILMOIST,source,varfield,&
                    vlevel=4,units="kg/m2")
        endif
     endif
 
     if (nldas2data(source)%lsm.ne."SAC") then
-       call interp_nldas2var(source,nc,nr,stl1,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,stl1,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILTEMP,source,varfield,&
                 vlevel=1,units="K")
     endif
     if ((nldas2data(source)%lsm.eq."NOAH").or.                         &
         (nldas2data(source)%lsm.eq."VIC")) then
-       call interp_nldas2var(source,nc,nr,stl2,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,stl2,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILTEMP,source,varfield,&
                 vlevel=2,units="K")
-       call interp_nldas2var(source,nc,nr,stl3,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,stl3,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILTEMP,source,varfield,&
                 vlevel=3,units="K")
     endif
     if (nldas2data(source)%lsm.eq."NOAH") then
-       call interp_nldas2var(source,nc,nr,stl4,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,stl4,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_SOILTEMP,source,varfield,&
                 vlevel=4,units="K")
     endif
 
     if (LVT_MOC_STREAMFLOW(source).ge.1) then
-       call interp_nldas2var(source,nc,nr,streamflow,varfield)
+       conserv=.false.
+       call interp_nldas2var(source,nc,nr,streamflow,varfield,conserv)
        call LVT_logSingleDataStreamVar(LVT_MOC_STREAMFLOW,source,varfield,&
             vlevel=1,units="m3/s")
     endif
@@ -1271,10 +1337,11 @@
 !  \label{interp_nldas2var}
 !
 ! !INTERFACE:
-  subroutine interp_nldas2var(source,nc,nr,var_input,var_output)
+  subroutine interp_nldas2var(source,nc,nr,var_input,var_output,conserv)
 !
 ! !USES:
-    use LVT_coreMod,    only : LVT_rc
+    use LVT_coreMod,    only : LVT_rc, LVT_isAtAfinerResolution
+    use LVT_logMod,     only:  LVT_logunit
     use NLDAS2_dataMod, only : nldas2data
 
     implicit none
@@ -1308,6 +1375,7 @@
     real               :: var_input(nc*nr)
     logical*1          :: lb(nc*nr)
     real               :: var_output(LVT_rc%lnc, LVT_rc%lnr)
+    logical, intent(in) :: conserv
 !EOP
     integer            :: iret
     integer            :: c,r
@@ -1324,14 +1392,36 @@
        enddo
     enddo
 
-    call bilinear_interp(LVT_rc%gridDesc,lb,var_input,                 &
-         lo,go,nc*nr,LVT_rc%lnc*LVT_rc%lnr,                            &
-         nldas2data(source)%rlat,nldas2data(source)%rlon,              &
-         nldas2data(source)%w11,nldas2data(source)%w12,                &
-         nldas2data(source)%w21,nldas2data(source)%w22,                &
-         nldas2data(source)%n11,nldas2data(source)%n12,                &
-         nldas2data(source)%n21,nldas2data(source)%n22,                &
-         LVT_rc%udef,iret)
+    ! EMK...Use budget or bilinear interpolation if NLDAS2 is at 
+    ! coarser resolution than the analysis grid; otherwise, use
+    ! upscale averaging.
+    if (LVT_isAtAFinerResolution(nldas2data(source)%datares)) then
+       if (conserv) then
+          call conserv_interp(LVT_rc%gridDesc,lb,var_input, &
+               lo,go, nc*nr, LVT_rc%lnc*LVT_rc%lnr, &
+               nldas2data(source)%rlat, nldas2data(source)%rlon, &
+               nldas2data(source)%w112, nldas2data(source)%w122, &
+               nldas2data(source)%w212, nldas2data(source)%w222, &
+               nldas2data(source)%n112, nldas2data(source)%n122, &
+               nldas2data(source)%n212, nldas2data(source)%n222, &
+               LVT_rc%udef, iret)     
+       else
+          call bilinear_interp(LVT_rc%gridDesc,lb,var_input,                 &
+               lo,go,nc*nr,LVT_rc%lnc*LVT_rc%lnr,                            &
+               nldas2data(source)%rlat,nldas2data(source)%rlon,              &
+               nldas2data(source)%w11,nldas2data(source)%w12,                &
+               nldas2data(source)%w21,nldas2data(source)%w22,                &
+               nldas2data(source)%n11,nldas2data(source)%n12,                &
+               nldas2data(source)%n21,nldas2data(source)%n22,                &
+               LVT_rc%udef,iret)
+       end if
+    else
+       call upscaleByAveraging(&
+            nc*nr, &
+            LVT_rc%lnc*LVT_rc%lnr, LVT_rc%udef, &
+            nldas2data(source)%n11, lb, &
+            var_input, lo, go)
+    end if
 
     do r = 1,LVT_rc%lnr
        do c = 1,LVT_rc%lnc

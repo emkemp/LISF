@@ -44,9 +44,13 @@ module NLDAS2_dataMod
   type, public            :: nldas2datadec
      character*120           :: odir
      character*120           :: interval
+     real :: datares
      real, allocatable       :: rlat(:)
      real, allocatable       :: rlon(:)
+     ! Used for upscaling averaging and bilinear interpolation
      integer, allocatable    :: n11(:)
+
+     ! Used for bilinear interpolation (non-precip)
      integer, allocatable    :: n12(:)
      integer, allocatable    :: n21(:)
      integer, allocatable    :: n22(:)     
@@ -54,6 +58,17 @@ module NLDAS2_dataMod
      real,    allocatable    :: w12(:)
      real,    allocatable    :: w21(:)
      real,    allocatable    :: w22(:)
+
+     ! Used with budget interpolation (precip)
+     integer, allocatable        :: n112(:,:)
+     integer, allocatable        :: n122(:,:)
+     integer, allocatable        :: n212(:,:)
+     integer, allocatable        :: n222(:,:)     
+     real,    allocatable        :: w112(:,:)
+     real,    allocatable        :: w122(:,:)
+     real,    allocatable        :: w212(:,:)
+     real,    allocatable        :: w222(:,:)
+
      real,    allocatable    :: vic_depth1(:,:)
      real,    allocatable    :: vic_depth2(:,:)
      real,    allocatable    :: vic_depth3(:,:)
@@ -177,14 +192,6 @@ contains
     
     allocate(nldas2data(i)%rlat(LVT_rc%lnc*LVT_rc%lnr))
     allocate(nldas2data(i)%rlon(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%n11(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%n12(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%n21(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%n22(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%w11(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%w12(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%w21(LVT_rc%lnc*LVT_rc%lnr))
-    allocate(nldas2data(i)%w22(LVT_rc%lnc*LVT_rc%lnr))
     
     gridDesci    = 0
     gridDesci(1) = 0
@@ -201,14 +208,75 @@ contains
     
     nldas2data(i)%nc = 464
     nldas2data(i)%nr = 224
+
+    ! EMK...Use budget or bilinear interpolation if NLDAS2 is at coarser
+    ! resolution than the analysis grid; otherwise, use upscale averaging.
+    if (LVT_isAtAFinerResolution(nldas2data(i)%datares)) then
+
+       ! Used for bilinear interpolation
+       allocate(nldas2data(i)%n11(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%n12(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%n21(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%n22(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%w11(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%w12(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%w21(LVT_rc%lnc*LVT_rc%lnr))
+       allocate(nldas2data(i)%w22(LVT_rc%lnc*LVT_rc%lnr))
     
-    call bilinear_interp_input(gridDesci,LVT_rc%gridDesc,            &
-         LVT_rc%lnc*LVT_rc%lnr,                &
-         nldas2data(i)%rlat, nldas2data(i)%rlon,     &
-         nldas2data(i)%n11, nldas2data(i)%n12,       &
-         nldas2data(i)%n21, nldas2data(i)%n22,       &
-         nldas2data(i)%w11, nldas2data(i)%w12,       &
-         nldas2data(i)%w21, nldas2data(i)%w22)
+       nldas2data(i)%n11 = 0
+       nldas2data(i)%n12 = 0
+       nldas2data(i)%n21 = 0
+       nldas2data(i)%n22 = 0
+       nldas2data(i)%w11 = 0
+       nldas2data(i)%w12 = 0
+       nldas2data(i)%w21 = 0
+       nldas2data(i)%w22 = 0
+
+       call bilinear_interp_input(gridDesci,LVT_rc%gridDesc,            &
+            LVT_rc%lnc*LVT_rc%lnr,                &
+            nldas2data(i)%rlat, nldas2data(i)%rlon,     &
+            nldas2data(i)%n11, nldas2data(i)%n12,       &
+            nldas2data(i)%n21, nldas2data(i)%n22,       &
+            nldas2data(i)%w11, nldas2data(i)%w12,       &
+            nldas2data(i)%w21, nldas2data(i)%w22)
+
+! Used only with budget interpolation (precip)
+       allocate(nldas2data(i)%n112(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%n122(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%n212(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%n222(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%w112(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%w122(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%w212(LVT_rc%lnc*LVT_rc%lnr,25))
+       allocate(nldas2data(i)%w222(LVT_rc%lnc*LVT_rc%lnr,25))
+       
+       nldas2data(i)%n112 = 0
+       nldas2data(i)%n122 = 0
+       nldas2data(i)%n212 = 0
+       nldas2data(i)%n222 = 0
+       nldas2data(i)%w112 = 0
+       nldas2data(i)%w122 = 0
+       nldas2data(i)%w212 = 0
+       nldas2data(i)%w222 = 0
+
+       call conserv_interp_input(gridDesci,LVT_rc%gridDesc,&
+            LVT_rc%lnc*LVT_rc%lnr, &
+            nldas2data(i)%rlat, nldas2data(i)%rlon,&
+            nldas2data(i)%n112, nldas2data(i)%n122, &
+            nldas2data(i)%n212, nldas2data(i)%n222, & 
+            nldas2data(i)%w112, nldas2data(i)%w122, &
+            nldas2data(i)%w212, nldas2data(i)%w222)
+    else
+        ! Used only with upscale averaging
+       allocate(nldas2data(i)%n11(nldas2data(i)%nc*nldas2data(i)%nr))
+       nldas2data(i)%n11 = 0
+       
+       call upscaleByAveraging_input(gridDesci,LVT_rc%gridDesc,&
+            nldas2data(i)%nc*nldas2data(i)%nr, &
+            LVT_rc%lnc*LVT_rc%lnr, &
+            nldas2data(i)%n11)
+
+    end if
 
     if (nldas2data(i)%lsm.eq."VIC") then 
        call ESMF_ConfigFindLabel(LVT_Config, &

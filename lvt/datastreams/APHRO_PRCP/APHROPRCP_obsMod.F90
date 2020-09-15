@@ -36,6 +36,7 @@ module APHROPRCP_obsMod
 !  09 Aug 2017   Sujay Kumar  Initial Specification
 !  14 Sep 2020   Eric Kemp    Added V1901 netCDF support, valid 1998-2015.
 !                             Updated interpolation.
+!  15 Sep 2020   Eric Kemp    Significant changes to mimic CHIRPSv2 reader.
 !EOP
 
   PUBLIC :: APHROPRCP_obsinit
@@ -46,22 +47,9 @@ module APHROPRCP_obsMod
      character*100        :: loc
      character*100        :: version ! EMK
      integer              :: nc, nr
-     integer              :: yr
-     type(ESMF_Time)         :: startTime
-     type(ESMF_TimeInterval) :: timeStep
 
      real,    allocatable     :: rlat(:)
      real,    allocatable     :: rlon(:)
-
-     ! EMK Updated interpolation
-     ! integer, allocatable     :: n11(:)
-     ! integer, allocatable     :: n12(:)
-     ! integer, allocatable     :: n21(:)
-     ! integer, allocatable     :: n22(:)
-     ! real,    allocatable     :: w11(:)
-     ! real,    allocatable     :: w12(:)
-     ! real,    allocatable     :: w21(:)
-     ! real,    allocatable     :: w22(:)
 
      ! EMK Used for upscale averaging
      integer, allocatable        :: n11(:)
@@ -78,7 +66,6 @@ module APHROPRCP_obsMod
 
      real :: datares
 
-     real,    allocatable     :: rainf(:,:,:)
   end type aphroprcpobsdec
 
   type(aphroprcpobsdec), allocatable :: aphroprcpobs(:)
@@ -125,11 +112,11 @@ contains
     endif
 
     call ESMF_ConfigGetAttribute(LVT_config, aphroprcpobs(i)%odir, &
-         label='APHRO PCP data directory:',rc=status)
+         label='APHRO PCP data directory:', rc=status)
     call LVT_verify(status, 'APHRO PCP data directory: not defined')
 
     call ESMF_ConfigGetAttribute(LVT_config, aphroprcpobs(i)%loc, &
-         label='APHRO PCP data region:',rc=status)
+         label='APHRO PCP data region:', rc=status)
     if(status.ne.0) then
        write(LVT_logunit,*) '[ERR] APHRO PCP data region: not defined'
        write(LVT_logunit,*) '[ERR] options are: '
@@ -142,7 +129,7 @@ contains
 
     ! EMK Add version number
     call ESMF_ConfigGetAttribute(LVT_config, aphroprcpobs(i)%version, &
-         label='APHRO PCP version:',rc=status)
+         label='APHRO PCP version:', rc=status)
     if(status.ne.0) then
        write(LVT_logunit,*) '[ERR] APHRO PCP version: not defined'
        write(LVT_logunit,*) '[ERR] options are: '
@@ -151,23 +138,11 @@ contains
        call LVT_endrun()
     endif
 
-
     gridDesci = 0
     call LVT_update_timestep(LVT_rc, 86400)
 
     allocate(aphroprcpobs(i)%rlat(LVT_rc%lnc*LVT_rc%lnr))
     allocate(aphroprcpobs(i)%rlon(LVT_rc%lnc*LVT_rc%lnr))
-
-    ! EMK...Update Interpolation
-    ! allocate(aphroprcpobs(i)%w11(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%w12(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%w21(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%w22(LVT_rc%lnc*LVT_rc%lnr))
-
-    ! allocate(aphroprcpobs(i)%n11(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%n12(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%n21(LVT_rc%lnc*LVT_rc%lnr))
-    ! allocate(aphroprcpobs(i)%n22(LVT_rc%lnc*LVT_rc%lnr))
 
     if(aphroprcpobs(i)%loc.eq."MA") then
        aphroprcpobs(i)%nc = 360
@@ -186,15 +161,6 @@ contains
        gridDesci(9) = 0.25
        gridDesci(10) = 0.25
        gridDesci(20) = 64
-
-       ! EMK Updated interpolation
-       !call bilinear_interp_input(gridDesci,LVT_rc%gridDesc,&
-       !     LVT_rc%lnc*LVT_rc%lnr, &
-       !     aphroprcpobs(i)%rlat, aphroprcpobs(i)%rlon, &
-       !     aphroprcpobs(i)%n11, aphroprcpobs(i)%n12,   &
-       !     aphroprcpobs(i)%n21, aphroprcpobs(i)%n22,   &
-       !     aphroprcpobs(i)%w11, aphroprcpobs(i)%w12,   &
-       !     aphroprcpobs(i)%w21, aphroprcpobs(i)%w22)
 
        ! EMK Use budget-bilinear interpolation if APHRODITE is at coarser
        ! resolution than the analysis grid; otherwise, use upscale averaging.
@@ -242,33 +208,6 @@ contains
        call LVT_endrun()
     endif
 
-    allocate(aphroprcpobs(i)%rainf(aphroprcpobs(i)%nc,&
-         aphroprcpobs(i)%nr,&
-         366))
-    aphroprcpobs(i)%yr = -1
-
-    call ESMF_TimeSet(aphroprcpobs(i)%startTime,  yy=LVT_rc%yr, &
-         mm = 1, &
-         dd = 1, &
-         h = 0, &
-         m = 0, &
-         calendar = LVT_calendar, &
-         rc=status)
-    call LVT_verify(status, 'error in setting APHRO start time')
-
-!    call ESMF_TimeSet(aphroprcpobs(i)%stopTime, yy=eyr, &
-!         mm = emo, &
-!         dd = eda, &
-!         h = ehr, &
-!         m = emn, &
-!         calendar = LVT_calendar, &
-!         rc=status)
-!    call LVT_verify(status, 'error in setting scan stop time')
-
-    call ESMF_TimeIntervalSet(aphroprcpobs(i)%timestep, s=86400, rc=status)
-    call LVT_verify(status, 'error in setting timestep (aphroprcpobs)')
-
   end subroutine APHROPRCP_obsinit
-
 
 end module APHROPRCP_obsMod

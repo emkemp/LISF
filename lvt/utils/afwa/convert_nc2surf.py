@@ -31,6 +31,7 @@
 #               to zero.
 # 31 Mar 2020:  Jim Geiger, Eric Kemp:  Upgraded to Python 3.6.  Also,
 #               upgraded to MULE 2020.01.1.
+# 04 Dec 2020:  Eric Kemp (SSAI): Fixed offset for starting lat/lon.
 #
 #------------------------------------------------------------------------------
 """
@@ -230,7 +231,8 @@ class Nc2Surf:
         self.grid["nlevs"] = self.ncid_lvt.__dict__['NUM_SOIL_LAYERS']
         self.grid["dx"] = self.ncid_lvt.__dict__['DX']
         self.grid["dy"] = self.ncid_lvt.__dict__['DY']
-        self.grid["start_lat"] = self.ncid_lvt.variables['latitude'][0, 0]
+        self.grid["start_lat"] = \
+            self.ncid_lvt.variables['latitude'][0, 0] - (0.5*self.grid["dy"])
 
         # Convert soil layer depths to meters.  Use fixed precision.
         slt_cm = \
@@ -255,7 +257,7 @@ class Nc2Surf:
         self.grid["start_lon"] = None
         for i, lon in enumerate(lons):
             if not lon < 0:
-                self.grid["start_lon"] = lon
+                self.grid["start_lon"] = lon - (0.5*self.grid["dx"])
                 break
         if self.grid["start_lon"] is None:
             print("[ERR] No starting longitude for LIS grid!")

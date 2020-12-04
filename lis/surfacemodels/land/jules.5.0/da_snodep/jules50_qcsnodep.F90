@@ -55,7 +55,8 @@ subroutine jules50_qcsnodep(n, LSM_State)
 
   real                   :: sndens
   logical                :: update_flag(LIS_rc%ngrid(n))
-
+  logical :: is_land_ice ! EMK
+  
   call ESMF_StateGet(LSM_State,"SWE",sweField,rc=status)
   call LIS_verify(status)
   call ESMF_StateGet(LSM_State,"Snowdepth",snodField,rc=status)
@@ -75,7 +76,10 @@ subroutine jules50_qcsnodep(n, LSM_State)
   call ESMF_AttributeGet(snodField,"Min Value",snodmin,rc=status)
   call LIS_verify(status)
 
+  write(LIS_logunit,*)'EMK: In jules50_qcsnodep...'
+
   update_flag    = .true.
+
   do t=1,LIS_rc%npatch(n,LIS_rc%lsm_index)
 
      gid = LIS_domain(n)%gindex(&
@@ -85,6 +89,19 @@ subroutine jules50_qcsnodep(n, LSM_State)
      if((snod(t).lt.snodmin) .or. swe(t).lt.swemin) then
         update_flag(gid) = .false.
      endif
+
+     ! EMK...Check if this is a land ice point.  If it is, we will not
+     ! allow SNODEP data assimilation to occur.
+     is_land_ice = jules50_struc(n)%jules50(t)%l_lice_point
+     if (is_land_ice) then
+        update_flag(gid) = .false.
+     end if
+
+     ! EMK...A more strict "deep snow" check, independent of the ancillary
+     ! data.
+     if (snod(t) > 10.) then
+        update_flag(gid) = .false.
+     end if
 
   enddo
 

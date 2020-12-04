@@ -1122,10 +1122,16 @@ contains
           call get_moc_attributes(modelSpecConfig, LVT_LISoutput(kk)%head_lsm_list,&
                "SnowDepth","snow_depth","snow depth","F",rc)
           if(rc.eq.1) then 
+             ! call register_dataEntry(LVT_LIS_MOC_LSM_COUNT(kk),LVT_LIS_MOC_SNOWDEPTH(kk),&
+             !      LVT_LISoutput(kk)%head_lsm_list,&
+             !      3,nsize,nensem,(/"m ","cm","mm"/),1,(/"-"/),&
+             !      valid_min=(/0.0/),valid_max=(/10.0/),gribSFC=1,gribLvl=1)
+             ! EMK TEST
              call register_dataEntry(LVT_LIS_MOC_LSM_COUNT(kk),LVT_LIS_MOC_SNOWDEPTH(kk),&
                   LVT_LISoutput(kk)%head_lsm_list,&
                   3,nsize,nensem,(/"m ","cm","mm"/),1,(/"-"/),&
-                  valid_min=(/0.0/),valid_max=(/10.0/),gribSFC=1,gribLvl=1)
+                  valid_min=(/0.0,0.0,0.0/),valid_max=(/10.0, 1000.0, 10000.0/),gribSFC=1,gribLvl=1)
+
           endif
 
           call ESMF_ConfigFindLabel(modelSpecConfig,"SnowIce:",rc=rc)
@@ -4538,9 +4544,10 @@ subroutine get_moc_attributes(modelSpecConfig, head_dataEntry, &
                    swe_calc%value(gid,m,1) = &
                         swe%value(gid,m,1)
                    swe_calc%count(gid,m,1) = swe%count(gid,m,1)
-                   if(swe_calc%value(gid,m,1).gt.2000) then 
-                      swe_calc%value(gid,m,1) = 2000.0
-                   endif
+                   ! EMK TEST for JULES
+                   !if(swe_calc%value(gid,m,1).gt.2000) then 
+                   !   swe_calc%value(gid,m,1) = 2000.0
+                   !endif
                 enddo
              enddo
           endif

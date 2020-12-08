@@ -19,6 +19,7 @@
 ! 08 Jul 2019: Yeosang Yoon; Modified for Jules.5.0 and LDT-SI data
 ! 13 Dec 2019: Eric Kemp; Replaced LDTSI with USAFSI
 ! 30 Dec 2019: Yeosang Yoon; updated QC
+! 08 Dec 2020: Eric Kemp; turn off DA in high snow depth regions.
 !
 ! !INTERFACE:
 subroutine jules50_qcusafsi(n, LSM_State)
@@ -57,16 +58,14 @@ subroutine jules50_qcusafsi(n, LSM_State)
 
   real                   :: sndens
   logical                :: update_flag(LIS_rc%ngrid(n))
-  real                   :: perc_violation(LIS_rc%ngrid(n))
 
-  real                   :: snodmean(LIS_rc%ngrid(n))
-  integer                :: nsnodmean(LIS_rc%ngrid(n))
+  logical :: is_land_ice ! EMK
 
   call ESMF_StateGet(LSM_State,"SWE",sweField,rc=status)
   call LIS_verify(status)
   call ESMF_StateGet(LSM_State,"Snowdepth",snodField,rc=status)
   call LIS_verify(status)
- 
+
   call ESMF_FieldGet(sweField,localDE=0,farrayPtr=swe,rc=status)
   call LIS_verify(status)
   call ESMF_FieldGet(snodField,localDE=0,farrayPtr=snod,rc=status)
@@ -91,6 +90,19 @@ subroutine jules50_qcusafsi(n, LSM_State)
      if((snod(t).lt.snodmin) .or. swe(t).lt.swemin) then
         update_flag(gid) = .false.
      endif
+
+     ! ! EMK...Check if this is a land ice point.  If it is, we will not
+     ! ! allow USAFSI data assimilation to occur.
+     ! is_land_ice = jules50_struc(n)%jules50(t)%l_lice_point
+     ! if (is_land_ice) then
+     !    update_flag(gid) = .false.
+     ! end if
+
+     ! EMK...A more strict "deep snow" check, independent of the ancillary
+     ! data.
+     if (snod(t) > 10.) then
+        update_flag(gid) = .false.
+     end if
 
   enddo
 

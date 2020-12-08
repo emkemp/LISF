@@ -17,6 +17,7 @@
 ! 30 Jan 2015: Yuqiong Liu; added additional QC
 ! 05 Nov 2018: Yeosang Yoon; Modified for Jules 5.0
 ! 30 Dec 2019: Yeosang Yoon; update QC
+! 08 Dec 2020: Eric Kemp; turn off DA in high snow depth regions.
 !
 ! !INTERFACE:
 subroutine jules50_qcsnodep(n, LSM_State)
@@ -76,8 +77,6 @@ subroutine jules50_qcsnodep(n, LSM_State)
   call ESMF_AttributeGet(snodField,"Min Value",snodmin,rc=status)
   call LIS_verify(status)
 
-  write(LIS_logunit,*)'EMK: In jules50_qcsnodep...'
-
   update_flag    = .true.
 
   do t=1,LIS_rc%npatch(n,LIS_rc%lsm_index)
@@ -90,12 +89,12 @@ subroutine jules50_qcsnodep(n, LSM_State)
         update_flag(gid) = .false.
      endif
 
-     ! EMK...Check if this is a land ice point.  If it is, we will not
-     ! allow SNODEP data assimilation to occur.
-     is_land_ice = jules50_struc(n)%jules50(t)%l_lice_point
-     if (is_land_ice) then
-        update_flag(gid) = .false.
-     end if
+     ! ! EMK...Check if this is a land ice point.  If it is, we will not
+     ! ! allow SNODEP data assimilation to occur.
+     ! is_land_ice = jules50_struc(n)%jules50(t)%l_lice_point
+     ! if (is_land_ice) then
+     !    update_flag(gid) = .false.
+     ! end if
 
      ! EMK...A more strict "deep snow" check, independent of the ancillary
      ! data.

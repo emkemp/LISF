@@ -106,6 +106,7 @@ subroutine read_SMOSNRTNNL2sm(n, k, OBS_State, OBS_Pert_State)
    integer :: gindex
    integer :: ii
    integer :: leng
+   integer :: gr, gc
    logical, save :: dgg_file_already_read = .false. 
 
    call ESMF_AttributeGet(OBS_State, "Data Directory", &
@@ -183,7 +184,10 @@ subroutine read_SMOSNRTNNL2sm(n, k, OBS_State, OBS_Pert_State)
       ! EMK: Now copy to local structure
       do r = 1, LIS_rc%lnr(n)
          do c = 1, LIS_rc%lnc(n)
-            gindex = LIS_domain(n)%gindex(c,r)
+            !gindex = LIS_domain(n)%gindex(c,r)
+            gr = r + LIS_nss_ind(n, LIS_localPet+1) - 1
+            gc = c + LIS_ews_ind(n, LIS_localPet+1) - 1
+            gindex = gc +(gr-1)*LIS_rc%gnc(n)
             if (gindex .eq. -1) cycle
 
             SMOSNRTNNL2sm_struc(n)%SMOS_lookup(c,r)%dgg_assign = &

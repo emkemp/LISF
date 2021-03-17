@@ -90,7 +90,7 @@ contains
     real                             :: gridDesci(50)
 
     call LVT_datastream_plugin
-    
+
     call observationsetup(trim(LVT_rc%obssource(1))//char(0),1)
     call observationsetup(trim(LVT_rc%obssource(2))//char(0),2)
 
@@ -339,6 +339,7 @@ contains
     endif
   end subroutine LVT_readDataStreams
 
+  
 !BOP
 ! 
 ! !ROUTINE: LVT_writeDataStreams
@@ -420,6 +421,7 @@ contains
     integer :: count_jules_ps41_ens_snow_vars
     logical :: jules_ps41_ens_snow
     logical :: is_ps41_snow_var
+    character(len=100) :: short_name
 
     ! EMK...This is only used when LVT is run in "557 post" mode.
     if (trim(LVT_rc%runmode) .ne. "557 post") return
@@ -466,6 +468,63 @@ contains
              lon(c,r) = LVT_rc%gridDesc(5)+(c-1)*LVT_rc%gridDesc(9)
           enddo
        enddo
+
+       ! EMK...Special handling of JULES PS41 multi-layer snow physics
+       ! when ensembles are processed.
+       ! FIXME...Add LVT flag specifying PS41?
+       dataEntry => LVT_histData%head_ds1_list
+       jules_ps41_ens_snow = .false.
+       if (trim(LVT_LIS_rc(1)%anlys_data_class) .eq. "LSM" .and. &
+            trim(LVT_LIS_rc(1)%model_name) .eq. "JULES.5.0" .and. &
+            LVT_rc%nensem .gt. 1) then
+
+          write(LVT_logunit,*) &
+               '[INFO] Prepare processing of JULES PS41 ensemble snow...'
+          call LVT_init_jules_PS41_ens_snow()
+
+          count_jules_ps41_ens_snow_vars = 0
+          do while(associated(dataEntry))
+
+             if (dataEntry%timeAvgOpt .ne. 0) then
+                dataEntry => dataEntry%next
+                cycle
+             end if
+
+             short_name = trim(dataEntry%short_name)//"_inst"
+
+             call LVT_prep_jules_ps41_ens_snow_var(short_name, &
+                  dataEntry%vlevels, dataEntry%value, is_ps41_snow_var)
+
+             if (is_ps41_snow_var) then
+                count_jules_ps41_ens_snow_vars = &
+                     count_jules_ps41_ens_snow_vars + 1
+             end if
+
+             if (count_jules_ps41_ens_snow_vars .eq. 6) exit
+             dataEntry => dataEntry%next
+          end do
+
+          if (count_jules_ps41_ens_snow_vars .ne. 6) then
+             write(LVT_logunit,*) &
+                  '[ERR] Cannot process JULES PS41 multi-layer snow'
+             write(LVT_logunit,*) &
+                  '[ERR] Not all variables found for ensemble processing'
+             flush(LVT_logunit)
+             call LVT_endrun()
+          else
+             jules_ps41_ens_snow = .true.
+          end if
+
+          ! Go to head of list for later processing
+          dataEntry => LVT_histData%head_ds1_list
+
+          ! We now have all the PS41 snow variables needed for ensemble
+          ! processing.  We invoke the relayer algorithm.  The output variables
+          ! will be fetched further down.
+          call LVT_proc_jules_ps41_ens_snow()
+
+       end if
+       ! EMK END JULES PS41 Snow
 
        if(LVT_rc%lvt_out_format.eq."grib1") then  
 
@@ -588,7 +647,7 @@ contains
           call LVT_verify(iret, 'failed to open grib file '//trim(fname_mean))
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call grib_open_file(ftn_ssdev,fname_ssdev,'w',iret)
              call LVT_verify(iret, 'failed to open grib file '//trim(fname_ssdev))
           end if
@@ -715,7 +774,7 @@ contains
           call LVT_verify(iret, 'failed to open grib file '//trim(fname_mean))
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call grib_open_file(ftn_ssdev,fname_ssdev,'w',iret)
              call LVT_verify(iret, 'failed to open grib file '//trim(fname_ssdev))
           end if
@@ -883,7 +942,7 @@ contains
           call LVT_verify(iret, 'failed to open grib file '//trim(fname_mean))
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              iret = nf90_create(path=trim(fname_ssdev), cmode =nf90_hdf5, &
                   ncid = ftn_ssdev)
              call LVT_verify(iret, 'failed to open grib file '//trim(fname_ssdev))
@@ -895,7 +954,7 @@ contains
           call LVT_verify(iret, 'failed to open grib file '//trim(fname_mean))
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              iret = nf90_create(path=trim(fname_ssdev), cmode =nf90_clobber, &
                   ncid = ftn_ssdev)
              call LVT_verify(iret, 'failed to open grib file '//trim(fname_ssdev))
@@ -1058,17 +1117,14 @@ contains
                   LVT_rc%gridDesc(9)))
           endif
 
-
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              !Headers
              call LVT_verify(nf90_def_dim(ftn_ssdev,'east_west',LVT_rc%gnc,dimID(1)))
              call LVT_verify(nf90_def_dim(ftn_ssdev,'north_south',LVT_rc%gnr,dimID(2)))
-             
              call LVT_verify(nf90_def_dim(ftn_ssdev,'time',1,tdimID))
              call LVT_verify(nf90_put_att(ftn_ssdev,NF90_GLOBAL,"missing_value",&
                   LVT_rc%udef))
-             
              call LVT_verify(nf90_def_var(ftn_ssdev,&
                   trim(xlat%short_name),&
                   nf90_float,&
@@ -1220,7 +1276,7 @@ contains
           end if
 
           dataEntry => LVT_histData%head_ds1_list
-          
+
           do while(associated(dataEntry))
              !reset the pointers to the head of the linked list
              if(LVT_LIS_rc(1)%anlys_data_class.eq."LSM") then 
@@ -1238,7 +1294,7 @@ contains
                    call defineNETCDFheaderVar(ftn_mean,dimID, lisdataEntry)  
                    
                    if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-                        LVT_rc%nensem > 1) then
+                        LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
                       call defineNETCDFheaderVar_ss(ftn_ssdev,dimID, lisdataEntry)  
                    end if
 
@@ -1259,7 +1315,7 @@ contains
                'nf90_put_att for title failed in LVT_DataStreamsMod')
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call LVT_verify(nf90_put_att(ftn_ssdev,NF90_GLOBAL,&
                   "NUM_SOIL_LAYERS", &
                   nsoillayers),&
@@ -1422,7 +1478,7 @@ contains
           call LVT_verify(nf90_put_var(ftn_mean,xtimeID,0.0))
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call LVT_verify(nf90_enddef(ftn_ssdev))
              call LVT_verify(nf90_put_var(ftn_ssdev,xtime_ss_ID,0.0))
           end if
@@ -1438,7 +1494,7 @@ contains
                'nf90_put_var failed for lon')
 
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call LVT_verify(nf90_put_var(ftn_ssdev,xlat_ss_ID, &
                   lat, (/1,1/),&
                   (/LVT_rc%gnc,LVT_rc%gnr/)),&
@@ -1451,54 +1507,6 @@ contains
        endif
 
        dataEntry => LVT_histData%head_ds1_list
-
-       ! EMK...Special handling of JULES PS41 multi-layer snow physics
-       ! when ensembles are processed.
-       ! FIXME...Add LVT flag specifying PS41?
-       jules_ps41_ens_snow = .false.
-       if (trim(LVT_LIS_rc(1)%anlys_data_class) .eq. "LSM" .and. &
-            trim(LVT_LIS_rc(1)%model_name) .eq. "JULES.5.0" .and. &
-            LVT_rc%nensem .gt. 1) then
-
-          write(LVT_logunit,*) &
-               '[INFO] Prepare processing of JULES PS41 ensemble snow...'
-          call LVT_init_jules_PS41_ens_snow()
-
-          count_jules_ps41_ens_snow_vars = 0
-          do while(associated(dataEntry))
-
-             call LVT_prep_jules_ps41_ens_snow_var(dataEntry%short_name, &
-                  dataEntry%vlevels, dataEntry%value, is_ps41_snow_var)
-
-             if (is_ps41_snow_var) then
-                count_jules_ps41_ens_snow_vars = &
-                     count_jules_ps41_ens_snow_vars + 1
-             end if
-
-             if (count_jules_ps41_ens_snow_vars .eq. 6) exit
-             dataEntry => dataEntry%next
-          end do
-
-          if (count_jules_ps41_ens_snow_vars .ne. 6) then
-             write(LVT_logunit,*) &
-                  '[ERR] Cannot process JULES PS41 multi-layer snow'
-             write(LVT_logunit,*) &
-                  '[ERR] Not all variables found for ensemble processing'
-             call LVT_endrun()
-          else
-             jules_ps41_ens_snow = .true.
-          end if
-
-          ! Go to head of list for later processing
-          dataEntry => LVT_histData%head_ds1_list
-
-          ! We now have all the PS41 snow variables needed for ensemble
-          ! processing.  We invoke the relayer algorithm.  The output variables
-          ! will be fetched further down.
-          call LVT_proc_jules_ps41_ens_snow()
-
-       end if
-       ! EMK END JULES PS41 Snow
 
        do while(associated(dataEntry))
 !reset the pointers to the head of the linked list
@@ -1535,7 +1543,7 @@ contains
                    pdTemplate = 2 ! Derived fcst from ensemble at point in time
                 else if (dataEntry%timeAvgOpt.eq.1 .or. &
                      dataEntry%timeAvgOpt.eq.2) then
-                   stepType = "avg"                   
+                   stepType = "avg"
                    timeRange = 7
                    pdTemplate = 12 ! Derived fcsts from ensemble over time interval
                 else if (dataEntry%timeAvgOpt.eq.3) then
@@ -1561,7 +1569,7 @@ contains
                 ! (minimum) value.
                 if (trim(dataEntry%short_name) == "RHMin") then
                    stepType = "min"
-                   timeRange = 7                   
+                   timeRange = 7
                    pdTemplate = 12
                 end if
 
@@ -1631,6 +1639,7 @@ contains
                                  botlev(k:k))
 
                          elseif(LVT_rc%lvt_out_format.eq."netcdf") then
+
                             call writeSingleNetcdfVar(ftn_mean,&
                                  gtmp1_1d,&
                                  lisdataentry%varid_def,&
@@ -1765,7 +1774,8 @@ contains
                            typeOfProcessedData=4)
 
                       if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-                           LVT_rc%nensem > 1) then
+                           LVT_rc%nensem > 1 &
+                           .and. .not. jules_ps41_ens_snow) then
                          call writeSingleGrib2Var(ftn_ssdev,&
                               gtmp1_ss,&
                               lisdataentry%varid_def,&
@@ -1806,7 +1816,8 @@ contains
                            botlev(k:k))
 
                       if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-                           LVT_rc%nensem > 1) then
+                           LVT_rc%nensem > 1 &
+                           .and. .not. jules_ps41_ens_snow) then
 
                          call writeSingleGrib1Var(ftn_ssdev,&
                               gtmp1_ss,&
@@ -1830,7 +1841,8 @@ contains
                            lisdataentry%varid_def,&
                            k)
                       if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-                           LVT_rc%nensem > 1) then
+                           LVT_rc%nensem > 1 &
+                           .and. .not. jules_ps41_ens_snow) then
                          call writeSingleNetcdfVar(ftn_ssdev,&
                               gtmp1_ss,&
                               lisdataentry%varid_ss,&
@@ -1863,24 +1875,24 @@ contains
        if(LVT_rc%lvt_out_format.eq."grib1") then  
           call grib_close_file(ftn_mean,iret)
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then             
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call grib_close_file(ftn_ssdev,iret)
           end if
        elseif(LVT_rc%lvt_out_format.eq."grib2") then  
           call grib_close_file(ftn_mean,iret)
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call grib_close_file(ftn_ssdev,iret)
           end if
        elseif(LVT_rc%lvt_out_format.eq."netcdf") then  
           call LVT_verify(nf90_close(ftn_mean))
           if (LVT_rc%tavgInterval == LVT_rc%ts .and. &
-               LVT_rc%nensem > 1) then
+               LVT_rc%nensem > 1 .and. .not. jules_ps41_ens_snow) then
              call LVT_verify(nf90_close(ftn_ssdev))
           end if
        endif
     endif
-       
+
   end subroutine LVT_writeDataStreams
 
   ! EMK...Return logical indicating if alarm should ring.  
@@ -2100,9 +2112,6 @@ contains
           do r = 1, LVT_rc%gnr
              do c = 1, LVT_rc%gnc
                 gid = LVT_domain%gindex(c,r)
-!                 write(LVT_logunit,*)'EMK: c,r,gid,lat(c,r) = ', &
-!                      c,r,gid,lat(c,r)
-!                 flush(LVT_logunit)
 
                 if (gid .eq. -1 .and. lat(c,r) >= 80.) then
                    if (watert_ip(c+(r-1)*LVT_rc%gnc) == -9999) then
@@ -2116,14 +2125,14 @@ contains
           gribDis   = 10
           !stepType  = "avg"
           stepType = "instant" ! EMK
-          pdTemplate = 0 
+          pdTemplate = 0
           gribCat   = 3
           varid_def = 0
-          gribSfc   = 1          
+          gribSfc   = 1
           gribSF    = 10
-          gribLvl   = 1 
-          
-          if(LVT_rc%lvt_out_format.eq."grib2") then 
+          gribLvl   = 1
+
+          if(LVT_rc%lvt_out_format.eq."grib2") then
      ! add to the grib file
              call writeSingleGrib2Var(ftn_mean,&
                   watert_ip,&
@@ -2322,8 +2331,8 @@ contains
           end if
        end do ! c
 
-       ! EMK: Since sea ice is missing north of -49.5N and south of 40N, we 
-       ! need to set water points in this region to a reasonable value.  We 
+       ! EMK: Since sea ice is missing north of -49.5N and south of 40N, we
+       ! need to set water points in this region to a reasonable value.  We
        ! assume sea ice fraction is zero in this region.
        do r = 1, LVT_rc%gnr
           do c = 1, LVT_rc%gnc
@@ -2340,14 +2349,14 @@ contains
        gribDis   = 10
        !stepType  = "avg"
        stepType = "instant" ! EMK
-       pdTemplate = 0 
+       pdTemplate = 0
        gribCat   = 2
        varid_def = 0
        gribSfc   = 1
        gribSF    = 100
        gribLvl   = 1
-       
-       if(LVT_rc%lvt_out_format.eq."grib2") then 
+
+       if(LVT_rc%lvt_out_format.eq."grib2") then
           ! EMK...Use older cice date/time
           if (cice_ant_year .lt. cice_arc_year .or. &
                cice_ant_month .lt. cice_arc_month .or. &
@@ -2559,8 +2568,8 @@ contains
           end if
        end do ! c
 
-       ! EMK: Since sea ice is missing north of -49.5N and south of 40N, we 
-       ! need to set water points in this region to a reasonable value.  We 
+       ! EMK: Since sea ice is missing north of -49.5N and south of 40N, we
+       ! need to set water points in this region to a reasonable value.  We
        ! assume sea ice thickness is zero in this region.
        do r = 1, LVT_rc%gnr
           do c = 1, LVT_rc%gnc
@@ -2577,14 +2586,14 @@ contains
        gribDis   = 10
        !stepType  = "avg"
        stepType = "instant" ! EMK
-       pdTemplate = 0 
+       pdTemplate = 0
        gribCat   = 2
        varid_def = 1
        gribSfc   = 1
        gribSF    = 10
        gribLvl   = 1
-       
-       if(LVT_rc%lvt_out_format.eq."grib2") then 
+
+       if(LVT_rc%lvt_out_format.eq."grib2") then
 
           ! EMK...Use older hi date/time
           if (hi_ant_year .lt. hi_arc_year .or. &
@@ -4328,8 +4337,8 @@ contains
   ! Chan, T F, G H Golub, and R J LeVeque, 1983:  Algorithms for computing
   !   the sample variance:  Analysis and recommendations.  The American
   !   Statistician, 37, 242-247.  doi:10.1080/00031305.1983.10483115.
-  ! Knuth, D E, 1998:  The Art of Computer Programming, volume 2: 
-  !   Seminumerical Algorithms.  Third Edition, p 232.  Boston:  
+  ! Knuth, D E, 1998:  The Art of Computer Programming, volume 2:
+  !   Seminumerical Algorithms.  Third Edition, p 232.  Boston:
   !   Addison-Wesley.
   ! Ling, R F, 1974:  Comparisons of several algorithms for computing
   !   sample means and variances.  Journal of the American Statistical
@@ -4348,7 +4357,7 @@ contains
      delta = new_value - mean
      mean = mean + (delta / real(count))
      delta2 = new_value - mean
-     m2 = m2 + (delta * delta2)    
+     m2 = m2 + (delta * delta2)
   end subroutine welford_update
   subroutine welford_finalize(count, mean, m2, stddev)
      implicit none
@@ -4363,5 +4372,5 @@ contains
         stddev = sqrt(m2 / real(count))
      end if
   end subroutine welford_finalize
-  
+
 end module LVT_DataStreamsMod

@@ -319,7 +319,9 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
      srilanka_lowlimit = 43400
      srilanka_highlimit = 43497
      s_amer_lowlimit = 80000
-     s_amer_highlimit = 889999
+     !s_amer_highlimit = 889999
+     s_amer_highlimit = 88999 ! EMK 20 Aug 2021
+
   end if
 
 !     ------------------------------------------------------------------
@@ -1267,8 +1269,11 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
             
             if (obs_cur(i)%amt12 < -99999 .and.  &
                  obs_cur(i)%amt6 == 0 .and. &
-                 obs_cur(i)%wmonum >= 80000 .and. &
-                 obs_cur(i)%wmonum <= 88999) then
+                 ! EMK..20 Aug 2021
+                 !obs_cur(i)%wmonum >= 80000 .and. &
+                 !obs_cur(i)%wmonum <= 88999) then
+                 obs_cur(i)%wmonum >= s_amer_lowlimit .and. &
+                 obs_cur(i)%wmonum <= s_amer_highlimit) then
 
               dumhemi = hemi
               

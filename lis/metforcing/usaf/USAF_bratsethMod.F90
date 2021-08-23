@@ -20,7 +20,7 @@
 !              ........................................Eric Kemp/SSAI/NASA
 ! 03 Jun 2020  Removed Box-Cox transform in precipitation analysis
 !              ........................................Eric Kemp/SSAI/NASA
-!
+! 20 Aug 2021  Extended platform ID to 32 characters...Eric Kemp/SSAI/NASA
 ! DESCRIPTION:
 !
 ! Source code for gridded precipitation and screen-level analyses using
@@ -34,7 +34,7 @@
 !
 ! Bratseth, A M, 1986:  Statistical interpolation by means of successive
 !   corrections.  Tellus, 38A, 439-447.
-! Cressie, N A C, 1993:  Statistics for Spatial Data.  Revised Edition, 
+! Cressie, N A C, 1993:  Statistics for Spatial Data.  Revised Edition,
 !   Wiley, New York, 928 pp.
 ! Daley, R, 1991:  Atmospheric Data Analysis.  Cambridge University Press,
 !   Cambridge, UK, 457 pp.
@@ -97,7 +97,7 @@ module USAF_bratsethMod
       private
       integer :: nobs
       character*10, allocatable :: net(:)
-      character*10, allocatable :: platform(:)
+      character*32, allocatable :: platform(:)
       real, allocatable :: obs(:) ! Observed variable
       real, allocatable :: lat(:) ! Latitude of observation (deg N)
       real, allocatable :: lon(:) ! Longitude of observation (deg E)
@@ -281,7 +281,7 @@ contains
       ! Arguments
       type(USAF_ObsData),intent(inout) :: this
       character(len=10), intent(in) :: net
-      character(len=10), intent(in) :: platform
+      character(len=32), intent(in) :: platform
       real, intent(in) :: ob
       real, intent(in) :: lat
       real, intent(in) :: lon
@@ -622,7 +622,8 @@ contains
       real, allocatable :: xpts(:), ypts(:), rlat(:), rlon(:)
       real :: sigmaOSqr, ob, xi1, xj1, oErrScaleLength
       real :: xpnmcaf, ypnmcaf, orient, xmesh, xmeshl
-      character(len=10) :: net, platform
+      character(len=10) :: net
+      character(len=32) :: platform
       integer :: icount
       integer :: i,j
       integer :: count_good_ssmi
@@ -1108,7 +1109,8 @@ contains
       real, allocatable :: xpts(:), ypts(:), rlat(:), rlon(:)
       real :: sigmaOSqr, ob, xi1, xj1, oErrScaleLength
       real :: xpnmcaf, ypnmcaf, orient, xmesh, xmeshl
-      character(len=10) :: net, platform
+      character(len=10) :: net
+      character(len=32) :: platform
       integer :: count_good_geo_precip, icount
       integer :: npts
       integer :: i,j,jj
@@ -1546,7 +1548,7 @@ contains
       real, allocatable :: sumObsEstimates(:)
       integer :: npasses
       integer :: r
-      character(len=10) :: new_name,type
+      !character(len=10) :: new_name, type
       real :: convergeThresh
       real :: sigmaBSqr
       integer :: good_obs
@@ -3165,7 +3167,8 @@ contains
       real :: dlat, dlon
       integer :: c,r,j
       real :: ctrlat, ctrlon
-      character(len=10) :: net_new, platform_new
+      character(len=10) :: net_new
+      character(len=32) :: platform_new
       integer, allocatable :: actions(:), actions_pet(:)
       real, allocatable :: superobs_pet(:),superlat_pet(:),superlon_pet(:)
       real, allocatable :: means(:)
@@ -3587,7 +3590,8 @@ contains
       integer :: count_dups
       integer :: total_reject_count, total_merge_count, total_create_count
       real :: mean,back,newlat,newlon,sigmaOSqr,oErrScaleLength
-      character(len=10) :: net,platform
+      character(len=10) :: net
+      character(len=32) :: platform
       real :: diff
       integer :: r,c,i
       integer :: nobs
@@ -5419,7 +5423,7 @@ contains
       real, allocatable :: invDataDensities(:)
       real, allocatable :: sumObsEstimates(:)
       integer :: npasses
-      character(len=10) :: new_name,type
+      character(len=10) :: new_name, type
       real :: convergeThresh
       integer :: i,j
 
@@ -5582,7 +5586,8 @@ contains
       integer, parameter :: YD = 1649
       integer, parameter :: NCMOR = XD*YD
       real :: precip(XD,YD)
-      character(len=10) :: net, platform
+      character(len=10) :: net
+      character(len=32) :: platform
       real :: sigmaOSqr, oErrScaleLength
       integer :: count_good_obs
       character(len=120) :: fname

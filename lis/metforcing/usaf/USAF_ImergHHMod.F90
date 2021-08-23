@@ -10,7 +10,7 @@
 
 #include "LIS_misc.h"
 
-! Macros for tracing - Requires ESMF 7_1_0+                                   
+! Macros for tracing - Requires ESMF 7_1_0+
 #ifdef ESMF_TRACE
 #define TRACE_ENTER(region) call ESMF_TraceRegionEnter(region)
 #define TRACE_EXIT(region) call ESMF_TraceRegionExit(region)
@@ -68,10 +68,10 @@ contains
       TRACE_ENTER("newImergHHPrecip")
       nlats = 1800
       nlons = 3600
-      ntimes = 6 ! 6 30-min periods      
+      ntimes = 6 ! 6 30-min periods
       this%nlats = nlats
       this%nlons = nlons
-      this%ntimes = ntimes 
+      this%ntimes = ntimes
       !NOTE:  IMERG HDF5 grids are dimensioned lat,lon
       allocate(this%precip_cal_30min(nlats,nlons,ntimes))
       this%precip_cal_30min(:,:,:) = -9999
@@ -112,8 +112,8 @@ contains
    end subroutine destroyImergHHPrecip
 
    ! Copy to obsData
-   subroutine copyToObsDataImergHHPrecip(this,sigmaOSqr,oErrScaleLength, &
-        net,platform,obsData_struc)
+   subroutine copyToObsDataImergHHPrecip(this, sigmaOSqr, oErrScaleLength, &
+        net, platform, obsData_struc)
 
       ! Modules
       use USAF_bratsethMod, only: USAF_obsData, USAF_assignObsData
@@ -130,9 +130,11 @@ contains
       type(USAF_ObsData), intent(inout) :: obsData_struc
 
       ! Local variables
-      real :: ob,lat,lon
-      integer :: i,j
-      
+      ! EMK 23 Aug 2021...Bratseth has extended station-ID
+      character*32 :: platform32
+      real :: ob, lat, lon
+      integer :: i, j
+
       TRACE_ENTER("copyToObsDataImergHHPrecip")
 
       do j = 1, this%nlons
@@ -142,9 +144,12 @@ contains
 
             lat = (this%swlat) + (i-1)*(this%dlat)
             lon = (this%swlon) + (j-1)*(this%dlon)
-            call USAF_assignObsData(obsData_struc,net,platform,&
-                 ob,lat,lon,sigmaOSqr,oErrScaleLength)
-            
+
+            ! EMK 23 Aug 2021...Bratseth has extended platform ID
+            platform32 = trim(platform)
+            call USAF_assignObsData(obsData_struc, net, platform32, &
+                 ob, lat, lon, sigmaOSqr, oErrScaleLength)
+
          end do ! i
       end do ! j
 
@@ -154,8 +159,8 @@ contains
    ! Read slice from IMERG-E 30-min file.  Most low-level work occurs
    ! in internal subroutines.
    ! Code is designed to allow LIS to gracefully handle problems with
-   ! HDF5 file.  
-   subroutine update30minImergHHPrecip(this,itime,filename, &
+   ! HDF5 file.
+   subroutine update30minImergHHPrecip(this, itime, filename, &
         plp_thresh)
 
       ! Imports
@@ -181,7 +186,7 @@ contains
       logical :: fail
       integer :: hdferr
 #if (defined USE_HDF5)
-      integer(HID_T) :: file_id, dataset_id, datatype_id 
+      integer(HID_T) :: file_id, dataset_id, datatype_id
       integer(HSIZE_T) :: dims(3)
 #endif
       integer :: i,j
@@ -198,10 +203,10 @@ contains
 #if (defined USE_HDF5)
       ! Sanity checks
       if (itime .lt. 1 .or. itime .gt. this%ntimes) then
-         write(LIS_logunit,*)&
-              '[ERR] update30minImergHHPrecip Invalid time level ',itime
-         write(LIS_logunit,*) 'Must be in range from 1 to ',this%ntimes
-         write(LIS_logunit,*)'Must be in range from 1 to ',this%ntimes
+         write(LIS_logunit,*) &
+              '[ERR] update30minImergHHPrecip Invalid time level ', itime
+         write(LIS_logunit,*) 'Must be in range from 1 to ', this%ntimes
+         write(LIS_logunit,*)'Must be in range from 1 to ', this%ntimes
          flush(LIS_logunit)
          message(:) = ''
          message(1) = '[ERR] Program:  LIS'
@@ -211,10 +216,10 @@ contains
             call LIS_alert( 'LIS.update30minImergHHPrecip', 1, &
                  message )
             call LIS_abort( message)
-         endif         
+         endif
 #if (defined SPMD)
-         call MPI_Barrier(LIS_MPI_COMM, ierr)           
-#endif   
+         call MPI_Barrier(LIS_MPI_COMM, ierr)
+#endif
       end if
 
       ! Initialize IDs.  Useful later for error handling.
@@ -224,26 +229,27 @@ contains
 
       ! Initialize HDF5 Fortran interface.
       call open_hdf5_f_interface(fail)
-      if (fail) goto 100 
+      if (fail) goto 100
 
       ! Open the file
       call open_imerg_file(trim(filename),file_id,fail)
-      if (fail) goto 100 
+      if (fail) goto 100
 
-      ! Open the precipitationCal dataset; sanity check the data type, 
+      ! Open the precipitationCal dataset; sanity check the data type,
       ! dimensions, and units; then read it in.
-      call open_imerg_dataset(file_id,"/Grid/precipitationCal",dataset_id,fail)
+      call open_imerg_dataset(file_id, "/Grid/precipitationCal", dataset_id, &
+           fail)
       if (fail) goto 100
-      call get_imerg_datatype(dataset_id,datatype_id,fail)
+      call get_imerg_datatype(dataset_id, datatype_id, fail)
       if (fail) goto 100
-      call check_imerg_type(datatype_id,H5T_IEEE_F32LE,fail)
+      call check_imerg_type(datatype_id, H5T_IEEE_F32LE, fail)
       if (fail) goto 100
       dims(1) = this%nlats
       dims(2) = this%nlons
-      dims(3) = 1 
-      call check_imerg_dims(dataset_id,3,dims,fail)
+      dims(3) = 1
+      call check_imerg_dims(dataset_id, 3, dims, fail)
       if (fail) goto 100
-      call check_imerg_units(dataset_id,"mm/hr",fail)
+      call check_imerg_units(dataset_id, "mm/hr", fail)
       if (fail) goto 100
       allocate(tmp_precip_cal(dims(1),dims(2),dims(3)))
       tmp_precip_cal = 0
@@ -255,22 +261,23 @@ contains
       end if
 
       ! Close the precipitationCal types.
-      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id,fail)     
-      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id,fail)
+      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id, fail)
+      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id, fail)
 
-      ! Open the probabilityLiquidPrecipitation dataset; sanity check the data 
+      ! Open the probabilityLiquidPrecipitation dataset; sanity check the data
       ! type and dimensions; then read it in.
-      call open_imerg_dataset(file_id,"/Grid/probabilityLiquidPrecipitation", &
-           dataset_id,fail)
+      call open_imerg_dataset(file_id, &
+           "/Grid/probabilityLiquidPrecipitation", &
+           dataset_id, fail)
       if (fail) goto 100
-      call get_imerg_datatype(dataset_id,datatype_id,fail)
+      call get_imerg_datatype(dataset_id, datatype_id, fail)
       if (fail) goto 100
       call check_imerg_type(datatype_id, H5T_STD_I16LE, fail)
       if (fail) goto 100
       dims(1) = this%nlats
       dims(2) = this%nlons
       dims(3) = 1
-      call check_imerg_dims(dataset_id,3,dims,fail)
+      call check_imerg_dims(dataset_id, 3, dims, fail)
       if (fail) goto 100
       allocate(tmp_prob_liq_precip(dims(1),dims(2),dims(3)))
       tmp_prob_liq_precip = 0
@@ -283,22 +290,22 @@ contains
       end if
 
       ! Close the probabilityLiquidPrecipitation types.
-      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id,fail)     
-      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id,fail)
+      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id, fail)
+      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id, fail)
 
-      ! Open the /Grid/IRkalmanFilterWeight dataset; sanity check the data 
+      ! Open the /Grid/IRkalmanFilterWeight dataset; sanity check the data
       ! type and dimensions; then read it in.
-      call open_imerg_dataset(file_id,"/Grid/IRkalmanFilterWeight", &
-           dataset_id,fail)
+      call open_imerg_dataset(file_id, "/Grid/IRkalmanFilterWeight", &
+           dataset_id, fail)
       if (fail) goto 100
-      call get_imerg_datatype(dataset_id,datatype_id,fail)
+      call get_imerg_datatype(dataset_id, datatype_id, fail)
       if (fail) goto 100
       call check_imerg_type(datatype_id, H5T_STD_I16LE, fail)
       if (fail) goto 100
       dims(1) = this%nlats
       dims(2) = this%nlons
       dims(3) = 1
-      call check_imerg_dims(dataset_id,3,dims,fail)
+      call check_imerg_dims(dataset_id, 3, dims, fail)
       if (fail) goto 100
       allocate(tmp_ir_kalman_weights(dims(1),dims(2),dims(3)))
       tmp_ir_kalman_weights = 0
@@ -311,24 +318,24 @@ contains
       end if
 
       ! Close the IRkalmanFilterWeight types.
-      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id,fail)     
-      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id,fail)
+      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id, fail)
+      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id, fail)
 
       ! Save the "good" precipitationCal data as well as the IR Kalman Filter
       ! weights.
       ! Precipitation units are converted from rate (mm/hr) to accumulation
       ! (mm).
       icount = 0
-      do j = 1,this%nlons
-         do i = 1,this%nlats
+      do j = 1, this%nlons
+         do i = 1, this%nlats
 
             ! Gross error checks
             if (tmp_precip_cal(i,j,1) .lt. 0) cycle
             if (tmp_prob_liq_precip(i,j,1) .lt. plp_thresh) cycle
-            if (tmp_ir_kalman_weights(i,j,1) .lt. 0) cycle            
+            if (tmp_ir_kalman_weights(i,j,1) .lt. 0) cycle
 
             this%precip_cal_30min(i,j,itime) = &
-                 tmp_precip_cal(i,j,1) * 0.5 
+                 tmp_precip_cal(i,j,1) * 0.5
             this%ir_kalman_wgts_30min(i,j,itime) = tmp_ir_kalman_weights(i,j,1)
 
             icount = icount + 1
@@ -336,7 +343,7 @@ contains
       end do ! j
 
       write(LIS_logunit,*) &
-           '[INFO] update30minImergHHPrecip found ',icount, &
+           '[INFO] update30minImergHHPrecip found ', icount, &
            ' good 30-min calibrated estimates'
 
       ! Clean up before returning.
@@ -344,8 +351,8 @@ contains
       if (allocated(tmp_precip_cal)) deallocate(tmp_precip_cal)
       if (allocated(tmp_prob_liq_precip)) deallocate(tmp_prob_liq_precip)
       if (allocated(tmp_ir_kalman_weights)) deallocate(tmp_ir_kalman_weights)
-      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id,fail)     
-      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id,fail)
+      if (datatype_id .gt. -1) call close_imerg_datatype(datatype_id, fail)
+      if (dataset_id .gt. -1) call close_imerg_dataset(dataset_id, fail)
       if (file_id .gt. -1) call close_imerg_file(file_id,fail)
       call close_hdf5_f_interface(fail)
 
@@ -363,17 +370,17 @@ contains
       message(2) = '  Routine update30minImergHHPrecip.'
       message(3) = '  LIS was not compiled with HDF5 support'
       if (LIS_masterproc) then
-         call LIS_alert('LIS.update30minImergHHPrecip',1,message)
+         call LIS_alert('LIS.update30minImergHHPrecip', 1, message)
          call LIS_abort(message)
       end if
 #if (defined SPMD)
-      call MPI_Barrier(LIS_MPI_COMM, ierr)           
-#endif 
+      call MPI_Barrier(LIS_MPI_COMM, ierr)
+#endif
 
 #endif
 
       TRACE_EXIT("update30minImergHHPrecip")
-   
+
    contains
 
 #if (defined USE_HDF5)
@@ -395,7 +402,7 @@ contains
       end subroutine open_hdf5_f_interface
 
       ! Internal subroutine.  Open the IMERG HDF5 file
-      subroutine open_imerg_file(filename,file_id,fail)
+      subroutine open_imerg_file(filename, file_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          implicit none
@@ -404,7 +411,7 @@ contains
          logical, intent(out) :: fail
          integer :: hdferr
          fail = .false.
-         call h5fopen_f(trim(filename),H5F_ACC_RDONLY_F,file_id,hdferr)
+         call h5fopen_f(trim(filename), H5F_ACC_RDONLY_F, file_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*)&
                  '[ERR] update30minImergHHPrecip cannot open file ', &
@@ -412,12 +419,12 @@ contains
             fail = .true.
          else
             write(LIS_logunit,*) &
-                 '[INFO] Opened Imerg file ',trim(filename)
+                 '[INFO] Opened Imerg file ', trim(filename)
          end if
       end subroutine open_imerg_file
 
       ! Internal subroutine.  Open HDF5 dataset.
-      subroutine open_imerg_dataset(file_id,dataset_name,dataset_id,fail)
+      subroutine open_imerg_dataset(file_id, dataset_name, dataset_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          implicit none
@@ -426,7 +433,7 @@ contains
          integer(HID_T),intent(out) :: dataset_id
          logical, intent(out) :: fail
          fail = .false.
-         call h5dopen_f(file_id,trim(dataset_name),dataset_id, hdferr)
+         call h5dopen_f(file_id,trim(dataset_name), dataset_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*)&
                  '[ERR] update30minImergHHPrecip cannot open dataset ', &
@@ -436,8 +443,8 @@ contains
       end subroutine open_imerg_dataset
 
       ! Internal subroutine.  Sanity check IMERG precipitation units.
-      subroutine check_imerg_units(dataset_id,units,fail)
-         
+      subroutine check_imerg_units(dataset_id, units, fail)
+
          ! Imports
          use HDF5
          use ISO_C_BINDING
@@ -465,7 +472,7 @@ contains
          fail = .false.
 
          ! Open the attribute
-         call h5aopen_f(dataset_id,'Units',attr_id,hdferr)
+         call h5aopen_f(dataset_id, 'Units', attr_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot open attribute'
@@ -478,19 +485,19 @@ contains
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot get attribute datatype'
-            call h5aclose_f(attr_id,hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
 
          ! Get the size of the attribute datatype, and sanity check.
-         call h5tget_size_f(type_id,size,hdferr)
+         call h5tget_size_f(type_id, size, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot get attribute ', &
                  'datatype size'
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -500,8 +507,8 @@ contains
                  'datatype size'
             write(LIS_logunit,*)'Expected ',sdim+1
             write(LIS_logunit,*)'Found ',size
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -512,21 +519,21 @@ contains
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot get attribute', &
                  'dataspace'
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
 
          ! Get the dimensions of the dataspace
-         call h5sget_simple_extent_dims_f(space_id,dims,maxdims,hdferr)
+         call h5sget_simple_extent_dims_f(space_id, dims, maxdims, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot get attribute ', &
                  'dataspace dimensions'
-            call h5sclose_f(space_id,hdferr)
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5sclose_f(space_id, hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -537,9 +544,9 @@ contains
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot copy attribute ', &
                  'memory datatype.'
-            call h5sclose_f(space_id,hdferr)
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5sclose_f(space_id, hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -548,10 +555,10 @@ contains
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot set attribute ', &
                  'memory datatype size.'
-            call h5tclose_f(memtype_id,hdferr)
-            call h5sclose_f(space_id,hdferr)
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(memtype_id, hdferr)
+            call h5sclose_f(space_id, hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -564,10 +571,10 @@ contains
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot read attribute.'
             deallocate(rdata)
-            call h5tclose_f(memtype_id,hdferr)
-            call h5sclose_f(space_id,hdferr)
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(memtype_id, hdferr)
+            call h5sclose_f(space_id, hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
@@ -580,30 +587,30 @@ contains
             write(LIS_logunit,*) 'Expected mm/hr'
             write(LIS_logunit,*) 'Found ',trim(rdata(1))
             deallocate(rdata)
-            call h5tclose_f(memtype_id,hdferr)
-            call h5sclose_f(space_id,hdferr)
-            call h5tclose_f(type_id,hdferr)
-            call h5aclose_f(attr_id,hdferr)
+            call h5tclose_f(memtype_id, hdferr)
+            call h5sclose_f(space_id, hdferr)
+            call h5tclose_f(type_id, hdferr)
+            call h5aclose_f(attr_id, hdferr)
             fail = .true.
             return
          end if
 
          ! Clean up
          deallocate(rdata)
-         call h5tclose_f(memtype_id,hdferr)
-         call h5sclose_f(space_id,hdferr)
-         call h5tclose_f(type_id,hdferr)
-         call h5aclose_f(attr_id,hdferr)
+         call h5tclose_f(memtype_id, hdferr)
+         call h5sclose_f(space_id, hdferr)
+         call h5tclose_f(type_id, hdferr)
+         call h5aclose_f(attr_id, hdferr)
 
       end subroutine check_imerg_units
 
       ! Internal subroutine.  Get HDF5 datatype
-      subroutine get_imerg_datatype(dataset_id,datatype_id,fail)
+      subroutine get_imerg_datatype(dataset_id, datatype_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          implicit none
-         integer(HID_T),intent(in) :: dataset_id
-         integer(HID_T),intent(out) :: datatype_id
+         integer(HID_T), intent(in) :: dataset_id
+         integer(HID_T), intent(out) :: datatype_id
          logical, intent(out) :: fail
          integer :: hdferr
          fail = .false.
@@ -615,7 +622,7 @@ contains
          end if
       end subroutine get_imerg_datatype
 
-      ! Internal function.  Check datatype 
+      ! Internal function.  Check datatype
       subroutine check_imerg_type(datatype_id, datatype, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
@@ -641,8 +648,8 @@ contains
       end subroutine check_imerg_type
 
       ! Internal subroutine.  Check the rank/dimensions of dataset.
-      subroutine check_imerg_dims(dataset_id,rank,dims,fail)
-         
+      subroutine check_imerg_dims(dataset_id, rank, dims, fail)
+
          ! Imports
          use HDF5
          use LIS_logMod, only: LIS_logunit
@@ -690,7 +697,8 @@ contains
          end if
 
          ! Check the rank (number of dimensions)
-         call h5sget_simple_extent_ndims_f(dataspace_id,dataspace_rank,hdferr)
+         call h5sget_simple_extent_ndims_f(dataspace_id, dataspace_rank, &
+              hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*)&
                  '[ERR] update30minImergHHPrecip cannot get rank of dataspace '
@@ -700,7 +708,7 @@ contains
          if (dataspace_rank .ne. rank) then
             write(LIS_logunit,*)&
                  '[ERR] update30minImergHHPrecip expected rank ', rank
-            write(LIS_logunit,*)'But found rank ',dataspace_rank
+            write(LIS_logunit,*)'But found rank ', dataspace_rank
             fail = .true.
             return
          end if
@@ -708,8 +716,8 @@ contains
          ! Check the dimensions
          allocate(dataspace_dims(rank))
          allocate(dataspace_maxdims(rank))
-         call h5sget_simple_extent_dims_f(dataspace_id,dataspace_dims, &
-              dataspace_maxdims,hdferr)
+         call h5sget_simple_extent_dims_f(dataspace_id, dataspace_dims, &
+              dataspace_maxdims, hdferr)
          if (hdferr .ne. rank) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot get dims for dataspace'
@@ -728,8 +736,8 @@ contains
             write(LIS_logunit,*) &
               '[ERR] update30minImergHHPrecip found bad dimensions for ', &
               'dataspace'
-            write(LIS_logunit,*)'Expected ',dims(:)
-            write(LIS_logunit,*)'Found ',dataspace_dims(:)
+            write(LIS_logunit,*)'Expected ', dims(:)
+            write(LIS_logunit,*)'Found ', dataspace_dims(:)
             deallocate(dataspace_dims)
             deallocate(dataspace_maxdims)
             return
@@ -738,7 +746,7 @@ contains
          ! Clean up
          deallocate(dataspace_dims)
          deallocate(dataspace_maxdims)
-         call h5sclose_f(dataspace_id,hdferr)
+         call h5sclose_f(dataspace_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot close dataspace'
@@ -749,14 +757,14 @@ contains
       end subroutine check_imerg_dims
 
       ! Internal subroutine.  Close datatype
-      subroutine close_imerg_datatype(datatype_id,fail)
+      subroutine close_imerg_datatype(datatype_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          integer(HID_T), intent(inout) :: datatype_id
          logical, intent(out) :: fail
          integer :: hdferr
          fail = .false.
-         call h5tclose_f(datatype_id,hdferr)
+         call h5tclose_f(datatype_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot close datatype '
@@ -766,14 +774,14 @@ contains
       end subroutine close_imerg_datatype
 
       ! internal function.  Close the dataset
-      subroutine close_imerg_dataset(dataset_id,fail)
+      subroutine close_imerg_dataset(dataset_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          integer(HID_T), intent(inout) :: dataset_id
          logical, intent(out) :: fail
          integer :: hdferr
          fail = .false.
-         call h5dclose_f(dataset_id,hdferr)
+         call h5dclose_f(dataset_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot close dataset '
@@ -783,7 +791,7 @@ contains
       end subroutine close_imerg_dataset
 
       ! Internal subroutine.  Close the IMERG HDF5 file.
-      subroutine close_imerg_file(file_id,fail)
+      subroutine close_imerg_file(file_id, fail)
          use HDF5
          use LIS_logMod, only: LIS_logunit
          implicit none
@@ -791,7 +799,7 @@ contains
          logical, intent(out) :: fail
          integer :: hdferr
          fail = .false.
-         call h5fclose_f(file_id,hdferr)
+         call h5fclose_f(file_id, hdferr)
          if (hdferr .ne. 0) then
             write(LIS_logunit,*) &
                  '[ERR] update30minImergHHPrecip cannot close file ', &
@@ -799,7 +807,7 @@ contains
             fail = .true.
          else
             write(LIS_logunit,*) &
-                 '[INFO] Closed IMERG file ',trim(filename)
+                 '[INFO] Closed IMERG file ', trim(filename)
          end if
          file_id = -1
       end subroutine close_imerg_file
@@ -844,8 +852,8 @@ contains
       skip = .false.
       this%precip_cal_3hr(:,:) = 0
       this%ir_kalman_wgts_3hr(:,:) = 0
-      do k = 1,this%ntimes
-         do j = 1,this%nlons
+      do k = 1, this%ntimes
+         do j = 1, this%nlons
             do i = 1, this%nlats
                if (skip(i,j)) cycle
                if (this%precip_cal_30min(i,j,k) .lt. 0 .or. &
@@ -863,7 +871,7 @@ contains
          end do ! j
       end do ! k
       do j = 1, this%nlons
-         do i = 1,this%nlats
+         do i = 1, this%nlats
             if (skip(i,j)) then
                this%precip_cal_3hr(i,j) = -9999
                this%ir_kalman_wgts_3hr(i,j) = -9999
@@ -896,8 +904,8 @@ contains
       ! Result
       integer :: icount
 
-      ! Local variables      
-      integer :: i,j
+      ! Local variables
+      integer :: i, j
 
       TRACE_ENTER("count3hrObsImergHHPrecip")
 
@@ -933,19 +941,19 @@ contains
       integer :: icounts(12)
       real :: wgt
       integer :: idx
-      integer :: i,j
+      integer :: i, j
 
       TRACE_ENTER("create_3hr_ir_kalman_histogram")
 
       ! Create the histogram
       icounts = 0
-      do j = 1,this%nlons
-         do i = 1,this%nlats
+      do j = 1, this%nlons
+         do i = 1, this%nlats
             wgt = this%ir_kalman_wgts_3hr(i,j)
             if (wgt .lt. 0) then
                cycle
             else if (wgt .lt. 100) then
-               idx = ceiling(wgt/10.) + 1
+               idx = ceiling(wgt / 10.) + 1
             else
                idx = 12
             end if
@@ -959,32 +967,35 @@ contains
       do idx = 1, 12
          if (idx .eq. 1) then
             write(LIS_logunit,'(A,I7)') &
-                 'Mean IR Kalman Weight      [0]:  ',icounts(idx)
+                 'Mean IR Kalman Weight      [0]:  ', icounts(idx)
          else if (idx .eq. 12) then
             write(LIS_logunit,'(A,I7)') &
-                 'Mean IR Kalman Weight    [100]:  ',icounts(idx)
+                 'Mean IR Kalman Weight    [100]:  ', icounts(idx)
          else if (idx .eq. 2) then
             write(LIS_logunit,'(A,I1,A,I3,A,I7)') &
-                 'Mean IR Kalman Weight  (',(idx-2)*10,',',(idx-1)*10,']:  ', &
+                 'Mean IR Kalman Weight  (', (idx-2)*10, ',', (idx-1)*10, &
+                 ']:  ', &
                  icounts(idx)
          else if (idx .eq. 11) then
             write(LIS_logunit,'(A,I2,A,I3,A,I7)') &
-                 'Mean IR Kalman Weight (',(idx-2)*10,',',(idx-1)*10,'):  ', &
+                 'Mean IR Kalman Weight (', (idx-2)*10, ',', (idx-1)*10, &
+                 '):  ', &
                  icounts(idx)
          else
             write(LIS_logunit,'(A,I2,A,I3,A,I7)') &
-                 'Mean IR Kalman Weight (',(idx-2)*10,',',(idx-1)*10,']:  ', &
+                 'Mean IR Kalman Weight (', (idx-2)*10, ',', (idx-1)*10, &
+                 ']:  ', &
                  icounts(idx)
          end if
       end do
-      
+
       TRACE_EXIT("create_3hr_ir_kalman_histogram")
 
    end subroutine create_3hr_ir_kalman_histogram
 
    ! Construct IMERG 30-min HDF5 filename
-   subroutine create_Imerg_HH_filename(dir,product,version,&
-        yr,mo,da,hr,mn,filename)
+   subroutine create_Imerg_HH_filename(dir, product, version, &
+        yr, mo, da, hr, mn, filename)
 
       ! Imports
       use ESMF
@@ -1013,8 +1024,8 @@ contains
       ! Local variables
       integer :: tmp_yr, tmp_mo, tmp_da, tmp_hr, tmp_mn, tmp_ss
       integer :: tmp_minutes_in_day
-      character(len=4) :: syr,sminutes_in_day
-      character(len=2) :: smo,sda,shr,smn,sss
+      character(len=4) :: syr, sminutes_in_day
+      character(len=2) :: smo, sda, shr, smn, sss
       type(ESMF_TIME) :: start_time, end_time, start_of_day
       type(ESMF_TIMEINTERVAL) :: half_hour
       type(ESMF_TIMEINTERVAL) :: time_diff
@@ -1027,8 +1038,8 @@ contains
       ! Construct start of filename.
       write(unit=syr, fmt='(i4.4)') yr
       write(unit=smo, fmt='(i2.2)') mo
-      filename = trim(dir)//"/"//trim(syr)//trim(smo)//"/"
-      filename = trim(filename)//trim(product)//".MS.MRG.3IMERG."
+      filename = trim(dir) // "/" // trim(syr) // trim(smo) // "/"
+      filename = trim(filename) // trim(product) // ".MS.MRG.3IMERG."
 
       ! Construct filename up through start date/time.
       write(unit=syr, fmt='(i4.4)') yr
@@ -1037,8 +1048,8 @@ contains
       write(unit=shr, fmt='(i2.2)') hr
       write(unit=smn, fmt='(i2.2)') mn
       write(unit=sss, fmt='(i2.2)') 0
-      filename = trim(filename)//syr//smo//sda
-      filename = trim(filename)//"-S"//shr//smn//sss
+      filename = trim(filename) // syr // smo // sda
+      filename = trim(filename) // "-S" // shr // smn // sss
 
       ! Determine end date/time.
       call esmf_timeset(start_time, &
@@ -1050,7 +1061,7 @@ contains
            s=0, &
            calendar = LIS_calendar, &
            rc = rc)
-      call esmf_timeintervalset(half_hour,m=29,s=59,rc=rc)
+      call esmf_timeintervalset(half_hour, m=29, s=59, rc=rc)
       end_time = start_time + half_hour
       call esmf_timeget(end_time, &
            yy = tmp_yr, &
@@ -1068,7 +1079,7 @@ contains
       write(unit=shr, fmt='(i2.2)') tmp_hr
       write(unit=smn, fmt='(i2.2)') tmp_mn
       write(unit=sss, fmt='(i2.2)') tmp_ss
-      filename = trim(filename)//"-E"//shr//smn//sss
+      filename = trim(filename) // "-E" // shr // smn // sss
 
       ! Determine number of minutes between start_of_day and start_time
       call esmf_timeset(start_of_day, &
@@ -1085,15 +1096,15 @@ contains
 
       ! Append minutes from start of month to filename
       write(unit=sminutes_in_day, fmt='(i4.4)') tmp_minutes_in_day
-      filename = trim(filename)//"."//sminutes_in_day
+      filename = trim(filename) // "." // sminutes_in_day
 
       ! Finish filename construction
       ! EMK...Acccomodate Final Run
       select case (trim(product))
       case ("3B-HHR")
-         filename = trim(filename)//"."//trim(version)//".HDF5"
+         filename = trim(filename) // "." // trim(version) // ".HDF5"
       case ("3B-HHR-E", "3B-HHR-L")
-         filename = trim(filename)//"."//trim(version)//".RT-H5"
+         filename = trim(filename) // "." // trim(version) // ".RT-H5"
       case default
          write(LIS_logunit,*) &
               '[ERR] Invalid IMERG product!'
@@ -1114,18 +1125,19 @@ contains
          end if
 
 #if (defined SPMD)
-         call MPI_Barrier(LIS_MPI_COMM, ierr)           
-#endif   
+         call MPI_Barrier(LIS_MPI_COMM, ierr)
+#endif
 
       end select
 
       TRACE_EXIT("create_Imerg_HH_filename")
-      
+
    end subroutine create_Imerg_HH_filename
 
    ! Driver routine to fetch 3hr IMERG data for given start date.
-   subroutine fetch3hrImergHH(j3hr,datadir,product,version,&
-        plp_thresh,nest,sigmaOSqr,oErrScaleLength,net,platform,precipObsData)
+   subroutine fetch3hrImergHH(j3hr, datadir, product, version,&
+        plp_thresh, nest, sigmaOSqr, oErrScaleLength, net, platform, &
+        precipObsData)
 
       ! Modules
       use USAF_bratsethMod, only: USAF_ObsData, USAF_createObsData
@@ -1152,7 +1164,7 @@ contains
       type(ESMF_TIME) :: start_time, cur_time
       type(ESMF_TIMEINTERVAL) :: half_hour
       type(ImergHHPrecip) :: imerg
-      integer :: yr,mo,da,hr,mn
+      integer :: yr, mo, da, hr, mn
       integer :: itime
       character(len=255) :: filename
       integer :: icount
@@ -1178,17 +1190,17 @@ contains
            s=0, &
            calendar = LIS_calendar, &
            rc = rc)
-      
+
       ! Set the half hour time interval
-      call esmf_timeintervalset(half_hour,m=30,rc=rc)
-      
+      call esmf_timeintervalset(half_hour, m=30, rc=rc)
+
       ! Create the ImergHHPrecip object
       imerg = newImergHHPrecip()
 
       ! Loop through each 30-min period for 3-hr accumulations
       itime = 1
       do
-         
+
          ! Get current filename
          call esmf_timeget(cur_time, &
               yy = yr, &
@@ -1196,33 +1208,33 @@ contains
               dd = da, &
               h  = hr, &
               m  = mn, &
-              rc = rc)        
+              rc = rc)
          call create_Imerg_HH_filename(datadir, product, version, &
-              yr,mo,da,hr,mn,filename)
+              yr, mo, da, hr, mn, filename)
 
          ! Process the 30HH file
-         call update30minImergHHPrecip(imerg,itime,filename,plp_thresh)
-         
+         call update30minImergHHPrecip(imerg,itime, filename, plp_thresh)
+
          ! Next cycle
          itime = itime + 1
          if (itime .gt. 6) exit
          cur_time = cur_time + half_hour
       end do
-      
+
       ! Calculate the 3-hr accumulations
       call calc3hrImergHHPrecip(imerg)
 
       ! Create obsData object.  For efficiency, allocate memory to match
       ! the total number of good 3-hr values
       icount = count3hrObsImergHHPrecip(imerg)
-      call USAF_createObsData(precipObsData,nest,maxobs=icount)
+      call USAF_createObsData(precipObsData, nest, maxobs=icount)
 
       ! Copy the good values into the ObsData object
-      call copyToObsDataImergHHPrecip(imerg,sigmaOSqr,oErrScaleLength, &
-           net,platform,precipObsData)
+      call copyToObsDataImergHHPrecip(imerg, sigmaOSqr, oErrScaleLength, &
+           net, platform, precipObsData)
 
       ! Clean up
       call destroyImergHHPrecip(imerg)
-            
+
    end subroutine fetch3hrImergHH
 end module USAF_ImergHHMod

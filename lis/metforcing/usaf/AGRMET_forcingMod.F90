@@ -713,7 +713,10 @@ integer, allocatable   :: n112_sh4(:)
 
      ! EMK Add WWMCA GRIB1 option
      integer :: read_wwmca_grib1
-     
+
+     ! EMK 20 Aug 2021 Add flag for updated preobs files with expanded station
+     ! ID strings and two-character country ID.
+     integer :: read_expanded_precip_station_ids
   end type agrmet_type_dec
 
   type(agrmet_type_dec), allocatable :: agrmet_struc(:)

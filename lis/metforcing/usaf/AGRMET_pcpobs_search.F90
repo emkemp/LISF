@@ -11,48 +11,49 @@
 ! !ROUTINE: AGRMET_pcpobs_search
 ! \label{AGRMET_pcpobs_search}
 !
-! !REVISION HISTORY: 
+! !REVISION HISTORY:
 !    21 feb 01   initial version...........................mr gayno/dnxm
 !     9 Sep 10   modified for JMOBS...........Chris Franks/16WS/WXE/SEMS
-!
-! !INTERFACE: 
+!    20 Aug 21   Extended station ID.................Eric Kemp/NASA/SSAI
+! !INTERFACE:
 subroutine AGRMET_pcpobs_search(network, plat_id, networks, firsts, lasts, &
                                 net_count, isize, obs, index)
 
   implicit none
-! !ARGUMENTS:   
 
+! !ARGUMENTS:
   character*10, intent(in)     :: network
   character*10, intent(in)     :: networks(25)
-  character*10, intent(in)     :: plat_id
+  character*32, intent(in)     :: plat_id ! EMK 20 Aug 2021
   integer,  intent(in)         :: firsts(25)
   integer,  intent(out)        :: index
   integer,  intent(in)         :: isize
   integer,  intent(in)         :: lasts(25)
   integer,  intent(in)         :: net_count
-  
-! !DESCRIPTION: 
+
+! !DESCRIPTION:
 !    finds a specific observation in an array of observations sorted
 !    by network and platform ID.
-!    
+!
 !    \textbf{Method} \newline
 !    - search for an observation using a binary search. \newline
 !    - if found, pass back its array index. \newline
 !    - if not found, pass back an array index of -9999 (missing). \newline
-!    
-! The arguments are variables are: 
+!
+! The arguments are variables are:
 ! \begin{description}
 !   \item[network]    JMOBS network of the obs, i.e. WMO, ICAO, FAA, etc.
 !   \item[plat\_id]    JMOBS platform ID, WMO number, call letters, etc.
 !   \item[net\_count]  The number of networks represented in the obs array
 !   \item[networks]   List of networks represented in the obs array
-!   \item[firsts]     Array of the first instance of each network in the obs array
-!   \item[lasts]      Array of the last instance of each network in the obs array
+!   \item[firsts]     Array of first instance of each network in the obs array
+!   \item[lasts]      Array of last instance of each network in the obs array
 !   \item[index]      array index of the observation we were searching for.
 !               if not found, set to -9999
 !   \item[isize]      number of elements in the observation array
-!   \item[obs]        array of observations sorted by network \& plat\_id \newline
-!      net      JMOBS network 
+!   \item[obs]        array of observations sorted by
+!                        network \& plat\_id \newline
+!      net      JMOBS network
 !      platform JMOBS platform ID
 !      amt6     six hourly precip amount \newline
 !      amt12    twelve hourly precip amount \newline
@@ -72,11 +73,11 @@ subroutine AGRMET_pcpobs_search(network, plat_id, networks, firsts, lasts, &
   integer                      :: net_index
   integer                      :: first
   logical                      :: found
-  
+
   type rain_obs
      sequence
      character*10               :: net
-     character*10               :: platform
+     character*32               :: platform ! EMK 20 Aug 2021
      integer                    :: wmonum
      real                       :: lat
      real                       :: lon
@@ -84,14 +85,16 @@ subroutine AGRMET_pcpobs_search(network, plat_id, networks, firsts, lasts, &
      integer                    :: amt12
      integer                    :: amt6
      integer                    :: amtmsc
+     integer                    :: duration ! EMK 20 Aug 2021
+     character*2                :: country_id ! EMK 20 Aug 2021
   end type rain_obs
-  
+
   type(rain_obs), intent(in)   :: obs(isize)
-  
+
 !-----------------------------------------------------------------------
 !     begin binary search here.  initialize array index to -9999 -
 !     the "not found" indicator.
-!     First find the range where the observations from this network 
+!     First find the range where the observations from this network
 !     reside
 !-----------------------------------------------------------------------
 
@@ -112,13 +115,13 @@ subroutine AGRMET_pcpobs_search(network, plat_id, networks, firsts, lasts, &
      net_index = net_index + 1
 
   end do
-  
+
   if (found) then
 
      found = .false.
 
      do
-     
+
         if ( (first > last) .or. found) return
 
 !-----------------------------------------------------------------------
@@ -127,27 +130,27 @@ subroutine AGRMET_pcpobs_search(network, plat_id, networks, firsts, lasts, &
 !-----------------------------------------------------------------------
 
         middle = (first + last) / 2
-     
+
         if (plat_id < obs(middle)%platform) then
-        
+
            last = middle  - 1
-        
+
         elseif (plat_id > obs(middle)%platform) then
-        
+
            first = middle + 1
-        
+
         else
-           
+
            found = .true.
            index = middle
-        
+
         end if
-        
+
      enddo
 
   end if
-     
+
   return
-     
+
 end subroutine AGRMET_pcpobs_search
 

@@ -8,11 +8,11 @@
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
 !BOP
-! 
+!
 ! !ROUTINE: AGRMET_storeobs
 ! \label{AGRMET_storeobs}
-! 
-! !REVISION HISTORY: 
+!
+! !REVISION HISTORY:
 !    21 feb 01   initial version...........................mr gayno/dnxm
 !    25 feb 02   store misc amounts for russian obs........mr gayno/dnxm
 !     9 sep 10   modified for JMOBS...........Chris Franks/16WS/WXE/SEMS
@@ -20,17 +20,19 @@
 !                block stn number.............Chris Franks/16WS/WXE/SEMS
 !    11 may 11   improve processing of obs from India and Sri Lanka
 !                .............................Chris Franks/16WS/WXE/SEMS
-!
-! !INTERFACE: 
+!    20 aug 21   Added extended station IDs and country IDs
+!                .............................Eric Kemp/NASA/SSAI
+! !INTERFACE:
 subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
-     mscprc, sixprc, twfprc, network, plat_id, cdms_flag, bsn, &
+     mscprc, sixprc, twfprc, network, plat_id, country_id, cdms_flag, bsn, &
      duration, julhr, stncnt)
 
   implicit none
-  
+
   integer,    intent(in)         :: isize
   character*10, intent(in)       :: network(isize)
-  character*10, intent(in)       :: plat_id(isize)
+  character*32, intent(in)       :: plat_id(isize) ! EMK 20 Aug 2021
+  character*2, intent(in)        :: country_id(isize) ! EMK 20 Aug 2021
   logical,    intent(in)         :: cdms_flag
   integer,    intent(in)         :: bsn(isize)
   integer,    intent(in)         :: duration(isize)
@@ -42,16 +44,16 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
   integer,    intent(in)         :: sixprc(isize)
   integer,    intent(in)         :: julhr
   integer,    intent(inout)      :: stncnt
-  integer,    intent(in)         :: twfprc(isize)   
+  integer,    intent(in)         :: twfprc(isize)
 
 !
-! !DESCRIPTION: 
+! !DESCRIPTION:
 !    performs some preprocessing on the raw observations and stores
 !    valid data in a storage array.
 !    \textbf{Method} \newline
 !    - ensure observation has a valid latitude, longitude \newline
 !    - if processing the first WMO ob set a flag \newline
-!    - if done processing 6-hourly WMO obs and 3-hourly obs remain, 
+!    - if done processing 6-hourly WMO obs and 3-hourly obs remain,
 !        insert those 3-hourly obs \newline
 !    - if a 3-hourly ob needs to be inserted here, do so \newline
 !    - if there is a valid 24 hourly amount... \newline
@@ -68,19 +70,19 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
 !      - store amount in 12 hourly part of obs data structure
 !    - if the observation is from india... \newline
 !      - if the obs is for 6Z and there is a 3Z ob for this station
-!        sum the miscellanous amounts from both and store it in 
+!        sum the miscellanous amounts from both and store it in
 !        the miscellaneous part of the obs data structure \newline
-!    - else store the miscellanous amount in the miscellaneous 
+!    - else store the miscellanous amount in the miscellaneous
 !        part of the obs data structure \newline
-!        - if the miscellaneous amount is less than 1 mm,  
+!        - if the miscellaneous amount is less than 1 mm,
 !          set amount to 1 mm. \newline
 !    - if the duration is 3 hours and this is a Sri Lankan ob... \newline
-!        - if there is an ob for this station for 3 hours ago 
-!          sum the miscellanous amounts from both and store it in 
+!        - if there is an ob for this station for 3 hours ago
+!          sum the miscellanous amounts from both and store it in
 !          the miscellaneous part of the obs data structure \newline
-!        - else store the miscellanous amount in the miscellaneous 
+!        - else store the miscellanous amount in the miscellaneous
 !          part of the obs data structure \newline
-!        - if the miscellaneous amount is less than 1 mm,  
+!        - if the miscellaneous amount is less than 1 mm,
 !          set amount to 1 mm. \newline
 !    - if there is a valid 6 hourly amount... \newline
 !      - if amount is less than 1 mm, as indicated by a flag
@@ -92,7 +94,7 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
 !        duration flag.  therefore, the misc amount will be
 !        used as a 12 hourly amount in later routines. \newline
 !
-!  The arguments and variables are: 
+!  The arguments and variables are:
 !  \begin{description}
 !   \item[bsn]       wmo block station number array
 !   \item[duration]  valid period of precipitation
@@ -123,14 +125,16 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
 !   \item[tempmsc]   temporary holding variable for a misc amount
 !   \item[twfprc]    array of 24 hourly precip amounts
 !   \item[obs3\_ptr]  allocatable to next 3-hour obervation to process
-!   \item[begin\_wmo] flag indicating that processing of CDMS or WMO obs has begun
+!   \item[begin\_wmo] flag indicating CDMS or WMO ob processing has begun
 !   \item[india\_lowlimit]      First 5-digit WMO num or 6-digit BSN for India
 !   \item[india\_highlimit]     Last 5-digit WMO num or 6-digit BSN for India
-!   \item[srilanka\_lowlimit]   First 5-digit WMO num or 6-digit BSN for Sri Lanka
-!   \item[srilanka\_highlimit]  Last 5-digit WMO num or 6-digit BSN for Sri Lanka
+!   \item[srilanka\_lowlimit]   First 5-digit WMO num or 6-digit BSN for Sri
+!                               Lanka
+!   \item[srilanka\_highlimit]  Last 5-digit WMO num or 6-digit BSN for Sri
+!                               Lanka
 !   \item[russia\_lowlimit]     First 5-digit WMO num or 6-digit BSN for Russia
 !   \item[russia\_highlimit]    Last 5-digit WMO num or 6-digit BSN for Russia
-!   \end{description}  
+!   \end{description}
 !EOP
   character*10                   :: date10
   integer                        :: india_lowlimit
@@ -148,11 +152,11 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
   integer                        :: russia_lowlimit
   integer                        :: russia_highlimit
   logical                        :: begin_wmo
-  
+
   type rain_obs
      sequence
      character*10                 :: net
-     character*10                 :: platform
+     character*32                 :: platform ! EMK 28 Aug 2021
      integer                      :: wmonum
      real                         :: lat
      real                         :: lon
@@ -160,15 +164,17 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
      integer                      :: amt12
      integer                      :: amt6
      integer                      :: amtmsc
+     integer                      :: duration ! EMK 28 Aug 2021
+     character*2                  :: country_id ! EMK 28 Aug 2021
   end type rain_obs
-  
+
   type(rain_obs), intent(inout)  :: obs(isize)
   type(rain_obs), intent(in)     :: obs3(isize)
 
 !     ------------------------------------------------------------------
-!     If observations were retrieved from CDMS use 6-digit BSN limits 
+!     If observations were retrieved from CDMS use 6-digit BSN limits
 !     for the specially processed regions
-!     Else the observations were retrieved from JMOBS use 5-digit WMO 
+!     Else the observations were retrieved from JMOBS use 5-digit WMO
 !     numbers
 !     ------------------------------------------------------------------
 
@@ -206,7 +212,7 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
 !       check for valid latitude and longitude.  if invalid skip
 !       to next ob.
 !     ------------------------------------------------------------------
-     
+
      if ( (ilat(irecord) > -99999998) .and.  &
           (ilon(irecord) > -99999998) ) then
         rlat = float(ilat(irecord)) * 0.01
@@ -214,36 +220,38 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
      else
         cycle RECORD
      end if
-     
+
 !     ------------------------------------------------------------------
 !     If bsn is not zero either the observations came from CDMS or they
-!     came from JMOBS and this is a WMO observation.  Set the flag to 
+!     came from JMOBS and this is a WMO observation.  Set the flag to
 !     indicate that we've begun processing these
-!     Else if bsn is zero and we did process some WMO observations, 
-!     insert any remaining 3-hourly observations in the array (this 
+!     Else if bsn is zero and we did process some WMO observations,
+!     insert any remaining 3-hourly observations in the array (this
 !     should never be executed when using CDMS)
 !     ------------------------------------------------------------------
 
       if ((bsn(irecord) > 0) .and. (begin_wmo .eqv. .FALSE.)) then
          begin_wmo = .TRUE.
       else if ((begin_wmo .eqv. .TRUE.) .and. &
-               (bsn(irecord) .eq. 0)   .and. &
-               (obs3_ptr < nsize3)) then
+           (bsn(irecord) .eq. 0)   .and. &
+           (obs3_ptr < nsize3)) then
 
-         do while (obs3_ptr <= nsize3) 
+         do while (obs3_ptr <= nsize3)
 
-           stncnt = stncnt + 1
-           obs(stncnt)%net    = obs3(obs3_ptr)%net
-           obs(stncnt)%platform = obs3(obs3_ptr)%platform
-           obs(stncnt)%wmonum = obs3(obs3_ptr)%wmonum
-           obs(stncnt)%lat    = obs3(obs3_ptr)%lat
-           obs(stncnt)%lon    = obs3(obs3_ptr)%lon
-           obs(stncnt)%amt24  = obs3(obs3_ptr)%amt24
-           obs(stncnt)%amt12  = obs3(obs3_ptr)%amt12
-           obs(stncnt)%amt6   = obs3(obs3_ptr)%amt6
-           obs(stncnt)%amtmsc = obs3(obs3_ptr)%amtmsc
+            stncnt = stncnt + 1
+            obs(stncnt)%net    = obs3(obs3_ptr)%net
+            obs(stncnt)%platform = obs3(obs3_ptr)%platform
+            obs(stncnt)%wmonum = obs3(obs3_ptr)%wmonum
+            obs(stncnt)%lat    = obs3(obs3_ptr)%lat
+            obs(stncnt)%lon    = obs3(obs3_ptr)%lon
+            obs(stncnt)%amt24  = obs3(obs3_ptr)%amt24
+            obs(stncnt)%amt12  = obs3(obs3_ptr)%amt12
+            obs(stncnt)%amt6   = obs3(obs3_ptr)%amt6
+            obs(stncnt)%amtmsc = obs3(obs3_ptr)%amtmsc
+            obs(stncnt)%duration = obs3(obs3_ptr)%duration ! EMK 20 Aug 2021
+            obs(stncnt)%country_id = obs3(obs3_ptr)%country_id ! EMK 20 Aug 21
 
-           obs3_ptr = obs3_ptr + 1 
+            obs3_ptr = obs3_ptr + 1
 
          end do
       end if
@@ -257,27 +265,29 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
           (bsn(irecord) > obs3(obs3_ptr)%wmonum)) then
 
          do while ((bsn(irecord) > obs3(obs3_ptr)%wmonum) .and. &
-                (obs3_ptr <= nsize3)) 
+                (obs3_ptr <= nsize3))
 
-           stncnt = stncnt + 1
-           obs(stncnt)%net    = obs3(obs3_ptr)%net
-           obs(stncnt)%platform = obs3(obs3_ptr)%platform
-           obs(stncnt)%wmonum = obs3(obs3_ptr)%wmonum
-           obs(stncnt)%lat    = obs3(obs3_ptr)%lat
-           obs(stncnt)%lon    = obs3(obs3_ptr)%lon
-           obs(stncnt)%amt24  = obs3(obs3_ptr)%amt24
-           obs(stncnt)%amt12  = obs3(obs3_ptr)%amt12
-           obs(stncnt)%amt6   = obs3(obs3_ptr)%amt6
-           obs(stncnt)%amtmsc = obs3(obs3_ptr)%amtmsc
+            stncnt = stncnt + 1
+            obs(stncnt)%net    = obs3(obs3_ptr)%net
+            obs(stncnt)%platform = obs3(obs3_ptr)%platform
+            obs(stncnt)%wmonum = obs3(obs3_ptr)%wmonum
+            obs(stncnt)%lat    = obs3(obs3_ptr)%lat
+            obs(stncnt)%lon    = obs3(obs3_ptr)%lon
+            obs(stncnt)%amt24  = obs3(obs3_ptr)%amt24
+            obs(stncnt)%amt12  = obs3(obs3_ptr)%amt12
+            obs(stncnt)%amt6   = obs3(obs3_ptr)%amt6
+            obs(stncnt)%amtmsc = obs3(obs3_ptr)%amtmsc
+            obs(stncnt)%duration = obs3(obs3_ptr)%duration ! EMK 20 Aug 2021
+            obs(stncnt)%country_id = obs3(obs3_ptr)%country_id ! EMK 20 Aug 21
 
-           obs3_ptr = obs3_ptr + 1 
+            obs3_ptr = obs3_ptr + 1
 
          end do
       end if
 
 !     ------------------------------------------------------------------
 !       check for valid precipitation totals.  if they exist, process this ob.
-!       Else check for an Indian or Sri Lankan ob from 3 hours ago for 
+!       Else check for an Indian or Sri Lankan ob from 3 hours ago for
 !       this bsn.  If one exists, copy it to the output array.
 !     ------------------------------------------------------------------
 
@@ -297,17 +307,19 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
            obs(stncnt)%amt12  = obs3(obs3_ptr)%amt12
            obs(stncnt)%amt6   = obs3(obs3_ptr)%amt6
            obs(stncnt)%amtmsc = obs3(obs3_ptr)%amtmsc
+           obs(stncnt)%duration = obs3(obs3_ptr)%duration ! EMK 20 Aug 2021
+           obs(stncnt)%country_id = obs3(obs3_ptr)%country_id ! EMK 20 Aug 21
 
-           obs3_ptr = obs3_ptr + 1 
+           obs3_ptr = obs3_ptr + 1
 
         end if
         cycle RECORD
      end if
-     
-        temp24  = -99999999
-        temp12  = -99999999
-        temp6   = -99999999
-        tempmsc = -99999999
+
+     temp24  = -99999999
+     temp12  = -99999999
+     temp6   = -99999999
+     tempmsc = -99999999
 
 !     ------------------------------------------------------------------
 !           in our database, negative numbers correspond to amounts
@@ -316,143 +328,141 @@ subroutine AGRMET_storeobs(nsize, nsize3, isize, obs, obs3, ilat, ilon,  &
 !           stored as -98.  there are no numbers less than -98
 !     ------------------------------------------------------------------
 
-        temp24 = twfprc(irecord)
-        
-        if ( temp24 < 0 .and. temp24 > -99 ) temp24 = 1
+     temp24 = twfprc(irecord)
+
+     if ( temp24 < 0 .and. temp24 > -99 ) temp24 = 1
 
 !     ------------------------------------------------------------------
 !           if there was no rain during the previous 24 hours, then
 !           the 12 and 6 hourly amounts must be zero as well.
 !     ------------------------------------------------------------------
 
-        if (temp24 == 0) then
-           
-           temp12 = 0
-           temp6  = 0
-           
-        else
-           
-           if (duration(irecord) == 12) then
-              
-              temp12 = mscprc(irecord)
-              if (temp12 < 0 .and. temp12 > -99) temp12 = 1
-              if ((bsn(irecord) >= india_lowlimit) .and. &
-                  (bsn(irecord) <= india_highlimit)) then
-                 tempmsc = mscprc(irecord)
-              end if
+     if (temp24 == 0) then
+
+        temp12 = 0
+        temp6  = 0
+
+     else
+
+        if (duration(irecord) == 12) then
+
+           temp12 = mscprc(irecord)
+           if (temp12 < 0 .and. temp12 > -99) temp12 = 1
+           if ((bsn(irecord) >= india_lowlimit) .and. &
+                (bsn(irecord) <= india_highlimit)) then
+              tempmsc = mscprc(irecord)
+           end if
 
 !     -----------------------------------------------------------------
 !             India reports precipitation as accumulations
-!             from 03z, not 24, 12 or 6 hourly amounts.  place it 
-!             in the miscellaneous part of the obs array. 
+!             from 03z, not 24, 12 or 6 hourly amounts.  place it
+!             in the miscellaneous part of the obs array.
 !             If we're processing 6Z and there's a matching ob from 3Z
 !             set the miscellaneous value to the sum of the two.
-!             else place the value from the 6-hourly ob in the 
-!             miscellaneous part of the obs array. 
+!             else place the value from the 6-hourly ob in the
+!             miscellaneous part of the obs array.
 !     -----------------------------------------------------------------
 
-           elseif ((bsn(irecord) >= india_lowlimit) .and. &
-                   (bsn(irecord) <= india_highlimit)) then
+        elseif ((bsn(irecord) >= india_lowlimit) .and. &
+             (bsn(irecord) <= india_highlimit)) then
 
-              if (( date10(9:10) == "06" ) .and. &
-                  (bsn(irecord) == obs3(obs3_ptr)%wmonum) .and. &
-                  (obs3_ptr <= nsize3)) then
-                 tempmsc = mscprc(irecord) + obs3(obs3_ptr)%amtmsc
-                 temp24 = obs3(obs3_ptr)%amt24
-                 obs3_ptr = obs3_ptr + 1
-              else
-                 tempmsc = mscprc(irecord)
-              end if
-              if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+           if (( date10(9:10) == "06" ) .and. &
+                (bsn(irecord) == obs3(obs3_ptr)%wmonum) .and. &
+                (obs3_ptr <= nsize3)) then
+              tempmsc = mscprc(irecord) + obs3(obs3_ptr)%amtmsc
+              temp24 = obs3(obs3_ptr)%amt24
+              obs3_ptr = obs3_ptr + 1
+           else
+              tempmsc = mscprc(irecord)
+           end if
+           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
 
 !     -----------------------------------------------------------------
 !             Sri Lanka reports 3 hour precipitation accumulations
-!             not 24, 12 or 6 hourly amounts.  place it 
-!             in the miscellaneous part of the obs array and add the 
+!             not 24, 12 or 6 hourly amounts.  place it
+!             in the miscellaneous part of the obs array and add the
 !             amount from 3 hours ago.
 !     -----------------------------------------------------------------
 
-           elseif ((duration(irecord) == 3) .and. &
-                ((bsn(irecord) >= srilanka_lowlimit) .and. &
-                (bsn(irecord) <= srilanka_highlimit))) then
+        elseif ((duration(irecord) == 3) .and. &
+             ((bsn(irecord) >= srilanka_lowlimit) .and. &
+             (bsn(irecord) <= srilanka_highlimit))) then
 
-              if ((bsn(irecord) == obs3(obs3_ptr)%wmonum) .and. &
-                  (obs3_ptr <= nsize3)) then
-                 tempmsc = mscprc(irecord) + obs3(obs3_ptr)%amtmsc
-                 obs3_ptr = obs3_ptr + 1
-              else
-                 tempmsc = mscprc(irecord)
-              end if
-              if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
-
-              
+           if ((bsn(irecord) == obs3(obs3_ptr)%wmonum) .and. &
+                (obs3_ptr <= nsize3)) then
+              tempmsc = mscprc(irecord) + obs3(obs3_ptr)%amtmsc
+              obs3_ptr = obs3_ptr + 1
+           else
+              tempmsc = mscprc(irecord)
            end if
+           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+
+        end if
 
 !     ------------------------------------------------------------------
 !             if there was no rain during the past 12 hours, then
 !             the 6-hourly amount must also be zero.
 !     ------------------------------------------------------------------
 
-           if (temp12 == 0) then
-              
-              temp6   = 0
-              
-           else
-              
-              temp6 = sixprc(irecord)
+        if (temp12 == 0) then
+           temp6   = 0
+        else
+           temp6 = sixprc(irecord)
 
 !     ------------------------------------------------------------------
-!               set small amounts less than 1 mm to 0.01 inches. 
+!               set small amounts less than 1 mm to 0.01 inches.
 !     ------------------------------------------------------------------
 
-              if ( temp6 < 0 .and. &
-                   temp6 > -99) temp6 = 1
-              
-           end if
-           
+           if ( temp6 < 0 .and. &
+                temp6 > -99) temp6 = 1
         end if
 
+     end if
+
 !     ------------------------------------------------------------------
-!           many russian stations report every 12 hours, but do not 
+!           many russian stations report every 12 hours, but do not
 !           report a valid duration.  therefore, we can't trust the
 !           above logic to get us a valid amount.  however, most
 !           russian obs report a misc amount, which we will use as
 !           a 12 hourly amount in later routines.
 !     ------------------------------------------------------------------
 
-        if (bsn(irecord) >= russia_lowlimit .and. &
-             bsn(irecord) <  russia_highlimit ) then
+     if (bsn(irecord) >= russia_lowlimit .and. &
+          bsn(irecord) <  russia_highlimit ) then
 
-           tempmsc = mscprc(irecord)
-           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
-           
-        end if
+        tempmsc = mscprc(irecord)
+        if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+
+     end if
 
 !     ------------------------------------------------------------------
-!           if the observation has at least one reported precip 
+!           if the observation has at least one reported precip
 !           amount, store it in the obs array.
 !     ------------------------------------------------------------------
-        
-        if (temp24 >=0 .or. temp12  >=0 .or. &
-             temp6  >=0 .or. tempmsc >= 0) then
-           
-           stncnt = stncnt + 1
-           
-           obs(stncnt)%net    = network(irecord)
-           obs(stncnt)%platform = plat_id(irecord)
-           obs(stncnt)%wmonum = bsn(irecord)
-           obs(stncnt)%lat    = rlat
-           obs(stncnt)%lon    = rlon
-           
-           obs(stncnt)%amt24  = temp24
-           obs(stncnt)%amt12  = temp12
-           obs(stncnt)%amt6   = temp6
-           obs(stncnt)%amtmsc = tempmsc
-           
-        end if
-        
+
+     if (temp24 >=0 .or. temp12  >=0 .or. &
+          temp6  >=0 .or. tempmsc >= 0) then
+
+        stncnt = stncnt + 1
+
+        obs(stncnt)%net    = network(irecord)
+        obs(stncnt)%platform = plat_id(irecord)
+        obs(stncnt)%wmonum = bsn(irecord)
+        obs(stncnt)%lat    = rlat
+        obs(stncnt)%lon    = rlon
+
+        obs(stncnt)%amt24  = temp24
+        obs(stncnt)%amt12  = temp12
+        obs(stncnt)%amt6   = temp6
+        obs(stncnt)%amtmsc = tempmsc
+
+        ! EMK 20 Aug 2021
+        obs(stncnt)%duration = duration(irecord)
+        obs(stncnt)%country_id = country_id(irecord)
+     end if
+
   enddo RECORD
-  
+
   return
 
 end subroutine AGRMET_storeobs

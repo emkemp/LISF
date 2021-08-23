@@ -8,20 +8,20 @@
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
 !BOP
-! 
+!
 ! !ROUTINE: AGRMET_getsfc
 ! \label{AGRMET_getsfc}
 !
-! !REVISION HISTORY: 
-! 
-!     09 Jul 94  Initial version...............Capt Bertone,SYSM/AGROMET  
-!     06 Dec 95  Changed the second call of offhr2 to call original   
-!                routine offhr1........................SSgt Erkkila/SYSM  
-!     12 Sep 97  Eliminated calls to onhour, offhr1 and offhr2.  
+! !REVISION HISTORY:
+!
+!     09 Jul 94  Initial version...............Capt Bertone,SYSM/AGROMET
+!     06 Dec 95  Changed the second call of offhr2 to call original
+!                routine offhr1........................SSgt Erkkila/SYSM
+!     12 Sep 97  Eliminated calls to onhour, offhr1 and offhr2.
 !                Converted from 6-hour to 1-hour retrieval of all
-!                observations. Brought code up to AFGWC & SYSM software   
+!                observations. Brought code up to AFGWC & SYSM software
 !                standards........Mr Moore(AGROMET), SSgt McCormick/SYSM
-!     28 Feb 99  Modified to process data by hemisphere instead of by 
+!     28 Feb 99  Modified to process data by hemisphere instead of by
 !                box, and to pull data from CDMS, to port the program
 !                from System 5 to GTWAPS (workstation).....Mr Moore/DNXM
 !     21 Ful 99  Ported to IBM SP-2.  Fixed some bugs.  Revamped
@@ -39,13 +39,15 @@
 !                temp & dew pt if RH not provided.Chris Franks/16WS/WXE/SEMS
 !     25 Jun 20  Modified to check valid times of surface obs.
 !                ..............................Eric Kemp/NASA/SSAI
-! 
-! !INTERFACE: 
+!     23 Aug 21  Bratseth code now wants 32-char platform IDs.  Adjusted
+!                accordingly...................Eric Kemp/NASA/SSAI
+! !INTERFACE:
 subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
      ri, rj, obstmp, obsrlh, obsspd, obscnt, &
-     isize, minwnd, alert_number, imax, jmax, rootdir,cdmsdir,&
+     isize, minwnd, alert_number, imax, jmax, rootdir, cdmsdir,&
      use_timestamp)
-! !USES: 
+
+! !USES:
   use AGRMET_forcingMod, only : agrmet_struc
   use LIS_coreMod,    only  : LIS_domain, LIS_masterproc
   use LIS_timeMgrMod, only  : LIS_julhr_date
@@ -55,35 +57,36 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
   use ESMF ! EMK Patch for DTG check
 
   implicit none
-! !ARGUMENTS:   
-  integer,    intent(in)         :: n 
+
+! !ARGUMENTS:
+  integer,    intent(in)         :: n
   integer,    intent(in)         :: julhr
   integer,    intent(in)         :: imax
   integer,    intent(in)         :: jmax
-  integer,    intent(in)         :: isize  
+  integer,    intent(in)         :: isize
   type(USAF_ObsData), intent(inout) :: t2mObs
   type(USAF_ObsData), intent(inout) :: rh2mObs
   type(USAF_ObsData), intent(inout) :: spd10mObs
-  real,       intent(out)        :: ri       ( isize ) 
-  real,       intent(out)        :: rj       ( isize ) 
-  real,       intent(out)        :: obsrlh   ( isize )   
-  real,       intent(out)        :: obsspd   ( isize ) 
-  real,       intent(out)        :: obstmp   ( isize )     
+  real,       intent(out)        :: ri       ( isize )
+  real,       intent(out)        :: rj       ( isize )
+  real,       intent(out)        :: obsrlh   ( isize )
+  real,       intent(out)        :: obsspd   ( isize )
+  real,       intent(out)        :: obstmp   ( isize )
   integer,    intent(out)        :: obscnt
   integer,    intent(inout)      :: alert_number
   real,       intent(in)         :: minwnd
   character(len=*)               :: rootdir
   character(len=*)               :: cdmsdir
   integer,    intent(in)         :: use_timestamp
-!    
-! !DESCRIPTION: 
-!    
+!
+! !DESCRIPTION:
+!
 !    Retrieve observed temperature, relative humidity, and
 !    wind speed values from the JMOBS database.
-!    
+!
 !    \textbf{Method} \newline
 !     - Set observation counter to zero. \newline
-!     - Retrieve all observations for this hemisphere and time from 
+!     - Retrieve all observations for this hemisphere and time from
 !       database. \newline
 !     - If there is a read error, send an alert message.  The
 !       observation count will remain at zero and no Barnes Analysis
@@ -91,14 +94,14 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !     - Check lat/lon of each observation for missing data and bad
 !       values.  Observations that fail check are not stored
 !       in the ob arrays passed to routine barnes. \newline
-!     - Convert from lat/lon to i and j and hemisphere on the 
+!     - Convert from lat/lon to i and j and hemisphere on the
 !       AGRMET model grid. \newline
 !       - Check for observations located outside of grid. \newline
 !       - Check for observations converted to other hemisphere. \newline
 !       - Observations that fail either check are not stored to
 !         the ob arrays. \newline
 !     - Check for observations with missing/unreported temperatures,
-!       wind speeds and relative humidities. Don't store to 
+!       wind speeds and relative humidities. Don't store to
 !       ob arrays if it fails check. \newline
 !     - Descale temperature, wind speed and relative humidity for
 !       each observation.  Range check data.  If temperature or
@@ -107,12 +110,12 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !       If wind speed is out of range, constrain it to between
 !       75 ms-1 and the value of minwnd.  If any of the fields
 !       are missing/unreported, store as minus 1. \newline
-!     - If all three fields are missing, unreported and/or out of 
+!     - If all three fields are missing, unreported and/or out of
 !       range, don't store this observation to the ob array. \newline
 !     - If the observation passes all the above checks, store
-!       the information to the final ob arrays for use in 
+!       the information to the final ob arrays for use in
 !       routine barnes and increment the observation counter. \newline
-!    
+!
 ! The arguments and variables are:
 !  \begin{description}
 !  \item[julhr]
@@ -136,10 +139,10 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !   Number of observations that have passed all
 !   quality control checks
 !  \item[isize]
-!   Max number of observations allowed for 
-!   a hemisphere 
+!   Max number of observations allowed for
+!   a hemisphere
 !  \item[minwnd]
-!    minimum allowable windspeed on the agrmet grid   
+!    minimum allowable windspeed on the agrmet grid
 !  \item[alert\_number]
 !    incremental number of alert message
 !  \item[imax]
@@ -184,12 +187,12 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !   descaled observation temperature
 !  \end{description}
 !
-!  The routines invoked are: 
+!  The routines invoked are:
 !  \begin{description}
 !  \item[julhr\_date](\ref{LIS_julhr_date}) \newline
 !   convert julian hr to a date format
 !  \item[getsfcobsfilename](\ref{getsfcobsfilename}) \newline
-!   generates the surface OBS filename 
+!   generates the surface OBS filename
 !  \item[lltops](\ref{lltops}) \newline
 !   convert latlon to points on the AGRMET grid
 !  \item[LIS\_alert](\ref{LIS_alert}) \newline
@@ -224,13 +227,13 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
   character*9, allocatable       :: platform ( : ) ! EMK BUG FIX
   character*8, allocatable       :: rptyp    ( : )
   logical, allocatable           :: skip (:) ! EMK
-  real                           :: rlat   
-  real                           :: rlon   
+  real                           :: rlat
+  real                           :: rlon
   real                           :: rrelh
   real                           :: rspd
   real                           :: rtmp
   integer                        :: yr, mo, da, hr
-  integer                        :: i 
+  integer                        :: i
 
   ! EMK Patch for DTG check
   character*14 :: yyyymmddhhmmss
@@ -243,6 +246,7 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 
   real,        external          :: AGRMET_calcrh_dpt
   character(len=10) :: net10, platform10
+  character(len=32) :: platform32 ! EMK 23 Aug 2021
   data norsou  / 'NORTHERN', 'SOUTHERN' /
 
 !     ------------------------------------------------------------------
@@ -253,7 +257,7 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
   obstmp = -1
   obsrlh = -1
   obsspd = -1
- 
+
   allocate ( idpt     ( isize ) )
   allocate ( ilat     ( isize ) )
   allocate ( ilon     ( isize ) )
@@ -291,12 +295,12 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 
      call getsfcobsfilename(sfcobsfile, rootdir, cdmsdir, &
           use_timestamp,hemi, yr, mo, da, hr)
-     
+
      write(LIS_logunit,*)'Reading OBS: ',trim(sfcobsfile)
-     open(22,file=trim(sfcobsfile),status='old', iostat=ierr1)
-     if(ierr1.eq.0) then 
+     open(22, file=trim(sfcobsfile), status='old', iostat=ierr1)
+     if (ierr1.eq.0) then
         read(22,*, iostat=ierr2) nsize
-        
+
 !     ------------------------------------------------------------------
 !     If the number of obs in the file is greater than the array size
 !     write an alert to the log and set back the number to read to
@@ -306,12 +310,16 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
         if ( nsize .GT. isize ) then
 
            write(LIS_logunit,*)' '
-           write(LIS_logunit,*)"******************************************************"
-           write(LIS_logunit,*)"* NUMBER OF SURFACE OBSERVATIONS EXCEEDS ARRAY SIZE."
+           write(LIS_logunit,*) &
+                "******************************************************"
+           write(LIS_logunit,*) &
+                "* NUMBER OF SURFACE OBSERVATIONS EXCEEDS ARRAY SIZE."
            write(LIS_logunit,*)"* NUMBER OF SURFACE OBS IS ", nsize
            write(LIS_logunit,*)"* ARRAY SIZE IS ", isize
-           write(LIS_logunit,*)"* OBSERVATIONS BEYOND ARRAY SIZE WILL BE IGNORED."
-           write(LIS_logunit,*)"******************************************************"
+           write(LIS_logunit,*) &
+                "* OBSERVATIONS BEYOND ARRAY SIZE WILL BE IGNORED."
+           write(LIS_logunit,*) &
+                "******************************************************"
            write(LIS_logunit,*)' '
 
            nsize = isize
@@ -383,8 +391,8 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
               if (skip(irecord)) cycle ! EMK
 
               if(ilat(irecord).gt.-99999998) then
-                 rlat = float(ilat(irecord))/100.0
-                 if((rlat.gt.90.0) .or. rlat.lt.-90.0) cycle
+                 rlat = float(ilat(irecord)) / 100.0
+                 if ((rlat .gt. 90.0) .or. rlat .lt. -90.0) cycle
               else
                  cycle
               endif
@@ -397,27 +405,26 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !     ------------------------------------------------------------------
 !         Only process the observations for the current hemisphere.
 !     ------------------------------------------------------------------
-              
-              if( ((hemi .eq. 1) .and. (rlat .ge. 0.0)) .or. &
-                   ((hemi .eq. 2) .and. (rlat .lt. 0.0)) ) then 
+
+              if ( ((hemi .eq. 1) .and. (rlat .ge. 0.0)) .or. &
+                   ((hemi .eq. 2) .and. (rlat .lt. 0.0)) ) then
 !     ------------------------------------------------------------------
 !         Convert point's lat/lon to i/j coordinates.
 !         check for values of rigrid and rjgrid outside of
 !         the AGRMET model grid, or in the other hemisphere.
 !     ------------------------------------------------------------------
 
-
                  call latlon_to_ij(LIS_domain(n)%lisproj, rlat, rlon, &
-                      rigrid, rjgrid)                        
-                 
+                      rigrid, rjgrid)
+
 !                 if(rigrid.ge.1.and.rigrid.le.imax.and. &
-!                      rjgrid.ge.1.and.rjgrid.le.jmax) then 
+!                      rjgrid.ge.1.and.rjgrid.le.jmax) then
 ! EMK TEST
                  if (.true.) then
 !     ------------------------------------------------------------------
-!         Make sure the observation is actually reporting temp, wind, 
-!         and rh or dew point before we store it.  
-!         Initial tests in july 99 showed that, on average, 5% of the 
+!         Make sure the observation is actually reporting temp, wind,
+!         and rh or dew point before we store it.
+!         Initial tests in july 99 showed that, on average, 5% of the
 !         observations had to be discared for this reason.
 !     ------------------------------------------------------------------
 
@@ -425,7 +432,7 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                         (ispd(irecord)  .gt. -99999998) ) .and. &
                         ( (irelh(irecord) .gt. -99999998) .or. &
                           (idpt(irecord) .gt. -99999998) ) ) then
-                    
+
                     ! EMK...Make sure dew point .le. temperature
                     if ( (itmp(irecord)  .gt. -99999998) .and. &
                          (idpt(irecord) .gt. -99999998) ) then
@@ -435,8 +442,8 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !     ------------------------------------------------------------------
 !         Gross error check and set temperature.
 !         Ensure temperature values are between 200.0 and 350.0 K.
-!         a "-99999999" indicates missing data and a "-99999998" 
-!         indicates a non report.  Bad data is given a value of -1, 
+!         a "-99999999" indicates missing data and a "-99999998"
+!         indicates a non report.  Bad data is given a value of -1,
 !         so the Barnes scheme will ignore it.
 !     ------------------------------------------------------------------
 
@@ -448,33 +455,33 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                     else
                        rtmp = -1.0
                     end if
-        
+
 !     ------------------------------------------------------------------
 !         Gross error check and set relative humidity values.
 !         ensure RH values are between 0.0 and 1.0.
 !         JMOBS RH is in percent.  Missing or bad values are given a
-!         value of -1, so the Barnes scheme will ignore it.  
+!         value of -1, so the Barnes scheme will ignore it.
 !     ------------------------------------------------------------------
 
                     if (irelh(irecord) .gt. -99999998) then
                        rrelh = float(irelh(irecord)) / 10000.0
-                       if ( (rrelh .gt. 1.0) .or. (rrelh .lt. 0.0) ) then   
+                       if ( (rrelh .gt. 1.0) .or. (rrelh .lt. 0.0) ) then
                           rrelh = -1.0
                        end if
                     else if ( (idpt(irecord) .gt. -99999998) .and. &
                            (rtmp .ne. -1.0) ) then
                        rdpt = float(idpt(irecord)) / 100.0
                        rrelh = AGRMET_calcrh_dpt(rtmp, rdpt)
-                       if ( (rrelh .gt. 1.0) .or. (rrelh .lt. 0.0) ) then   
+                       if ( (rrelh .gt. 1.0) .or. (rrelh .lt. 0.0) ) then
                           rrelh = -1.0
                        end if
                     else
                        rrelh = -1.0
                     end if
-           
+
 !     ------------------------------------------------------------------
 !         Constrain surface wind speed to a value between
-!         75 ms-1 and minwind (from control file).
+!         75 m s-1 and minwind (from control file).
 !         JMOBS winds are scaled by 10.  Bad values are given a value
 !         of -1, so the Barnes scheme will ignore it.
 !     ------------------------------------------------------------------
@@ -485,16 +492,16 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                     else
                        rspd = -1.0
                     end if
-      
+
 !     ------------------------------------------------------------------
 !         If all the data is out of range and/or missing, don't store
 !         this observation.
 !     ------------------------------------------------------------------
-           
+
                     if ( (nint(rtmp)  .gt. 0)  .and. &
-                         (nint(rrelh) .gt. 0)  .and.&
-                         (nint(rspd)  .gt. 0) ) then 
-                       
+                         (nint(rrelh) .gt. 0)  .and. &
+                         (nint(rspd)  .gt. 0) ) then
+
 !     ------------------------------------------------------------------
 !         If we make it here, the observation probably has some good
 !         data, so increment the observation counter, store the
@@ -512,9 +519,11 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                           if (trim(platform10) .eq. '-99999999') then
                              platform10 = '00000000'
                           end if
+                          ! EMK 23 Aug 2021...Switch to 32-char IDs
+                          platform32 = trim(platform10)
                           call USAF_assignObsData(t2mObs,net10, &
-                               platform10,rtmp,rlat,rlon, &
-                               agrmet_struc(n)%bratseth_t2m_stn_sigma_o_sqr,&
+                               platform32,rtmp,rlat,rlon, &
+                               agrmet_struc(n)%bratseth_t2m_stn_sigma_o_sqr, &
                                0.)
 
                        end if
@@ -527,8 +536,10 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                           if (trim(platform10) .eq. '-99999999') then
                              platform10 = '00000000'
                           end if
+                          ! EMK 23 Aug 2021...Switch to 32-char IDs
+                          platform32 = trim(platform10)
                           call USAF_assignObsData(rh2mObs,net10, &
-                               platform10,rrelh,rlat,rlon, &
+                               platform32,rrelh,rlat,rlon, &
                                agrmet_struc(n)%bratseth_t2m_stn_sigma_o_sqr, &
                                0.)
                        end if
@@ -541,23 +552,25 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
                           if (trim(platform10) .eq. '-99999999') then
                              platform10 = '00000000'
                           end if
-                          call USAF_assignObsData(spd10mObs,net10, &
-                               platform10,rspd,rlat,rlon, &
-                               agrmet_struc(n)%bratseth_spd10m_stn_sigma_o_sqr, &
-                               0.)
+                          ! EMK 23 Aug 2021...Switch to 32-char IDs
+                          platform32 = trim(platform10)
+                          call USAF_assignObsData(spd10mObs, net10, &
+                               platform32, rspd, rlat, rlon, &
+                             agrmet_struc(n)%bratseth_spd10m_stn_sigma_o_sqr, &
+                             0.)
 
                        end if
 
                        obscnt         = obscnt + 1
-                       
+
                        ri(obscnt)     = rigrid
                        rj(obscnt)     = rjgrid
                        obstmp(obscnt) = rtmp
                        obsrlh(obscnt) = rrelh
                        obsspd(obscnt) = rspd
-                       if(rspd.lt.0) then 
-                          print*, 'probl ',rlat,rlon, rspd
-                       endif
+                       !if (rspd.lt.0) then
+                       !   print*, 'probl ', rlat, rlon, rspd
+                       !endif
                     endif
 !     ------------------------------------------------------------------
 !         If we have reached the number of obs that our hard-wired
@@ -574,41 +587,42 @@ subroutine AGRMET_getsfc( n, julhr, t2mObs, rh2mObs, spd10mObs, &
 !       There was an error retrieving obs for this Julhr and hemi.
 !       Send an alert message, but don't abort.
 !     ------------------------------------------------------------------
-     
+
            write(cjulhr,'(i6)',iostat=istat1) julhr
            write(LIS_logunit,*)' '
            write(LIS_logunit,*)'- ROUTINE GETSFC: ERROR RETRIEVING SFC OBS FOR'
-           write(LIS_logunit,*)'- THE '//norsou(hemi)//' HEMISPHERE.'
+           write(LIS_logunit,*)'- THE '//norsou(hemi) // ' HEMISPHERE.'
            write(LIS_logunit,*)'- ISTAT IS ', ierr1
            message(1) = 'program:  LIS'
            message(2) = '  routine:  AGRMET_getsfc'
            message(3) = '  error retrieving sfc obs from database for'
-           message(4) = '  the '//norsou(hemi)//' hemisphere.'
-           if( istat1 .eq. 0 ) then
+           message(4) = '  the ' // norsou(hemi) // ' hemisphere.'
+           if ( istat1 .eq. 0 ) then
               write(LIS_logunit,*)'- JULHR IS ' // cjulhr
               message(5) = '  julhr is ' // trim(cjulhr) // '.'
            endif
            alert_number = alert_number + 1
-           if(LIS_masterproc) then 
+           if (LIS_masterproc) then
               call lis_alert( 'sfcalc              ', alert_number, message )
            endif
         endif
      else
-        write(cjulhr,'(i6)',iostat=istat1) julhr
+        write(cjulhr, '(i6)', iostat=istat1) julhr
         write(LIS_logunit,*)' '
-        write(LIS_logunit,*)'- ROUTINE AGRMET_GETSFC: ERROR RETRIEVING SFC OBS FOR'
-        write(LIS_logunit,*)'- THE '//norsou(hemi)//' HEMISPHERE.'
+        write(LIS_logunit,*) &
+             '- ROUTINE AGRMET_GETSFC: ERROR RETRIEVING SFC OBS FOR'
+        write(LIS_logunit,*)'- THE ' // norsou(hemi) // ' HEMISPHERE.'
         write(LIS_logunit,*)'- ISTAT IS ', ierr1
         message(1) = 'program:  LIS'
         message(2) = '  routine:  AGRMET_getsfc'
         message(3) = '  error retrieving sfc obs from database for'
         message(4) = '  the '//norsou(hemi)//' hemisphere.'
-        if( istat1 .eq. 0 ) then
+        if ( istat1 .eq. 0 ) then
            write(LIS_logunit,*)'- JULHR IS ' // cjulhr
            message(5) = '  julhr is ' // trim(cjulhr) // '.'
         endif
         alert_number = alert_number + 1
-        if(LIS_masterproc) then 
+        if (LIS_masterproc) then
            call lis_alert( 'sfcalc              ', alert_number, message )
         endif
      endif

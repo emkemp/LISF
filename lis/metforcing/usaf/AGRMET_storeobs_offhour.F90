@@ -8,23 +8,24 @@
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
 !BOP
-! 
+!
 ! !ROUTINE: AGRMET_storeobs_offhour
 ! \label{AGRMET_storeobs_offhour}
-! 
-! !REVISION HISTORY: 
-!    11 may 11   Adapted from AGRMET_storeobs...Chris Franks/16WS/WXE/SEMS
 !
-! !INTERFACE: 
+! !REVISION HISTORY:
+!    11 may 11   Adapted from AGRMET_storeobs...Chris Franks/16WS/WXE/SEMS
+!    20 aug 21   Added extended station ID and country ID...Eric Kemp/NASA/SSAI
+! !INTERFACE:
 subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
-     mscprc, sixprc, twfprc, network, plat_id, cdms_flag, bsn, &
+     mscprc, sixprc, twfprc, network, plat_id, country_id, cdms_flag, bsn, &
      duration, stncnt)
 
   implicit none
-  
+
   integer,    intent(in)         :: isize
   character*10, intent(in)       :: network(isize)
-  character*10, intent(in)       :: plat_id(isize)
+  character*32, intent(in)       :: plat_id(isize) ! EMK 20 Aug 2021
+  character*2, intent(in)        :: country_id(isize) ! EMK 20 Aug 2021
   logical,    intent(in)         :: cdms_flag
   integer,    intent(in)         :: bsn(isize)
   integer,    intent(in)         :: duration(isize)
@@ -34,15 +35,15 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
   integer,    intent(in)         :: nsize
   integer,    intent(in)         :: sixprc(isize)
   integer,    intent(inout)      :: stncnt
-  integer,    intent(in)         :: twfprc(isize)   
+  integer,    intent(in)         :: twfprc(isize)
 
 !
-! !DESCRIPTION: 
-!    performs some preprocessing on raw 3-hourly observations for 
+! !DESCRIPTION:
+!    performs some preprocessing on raw 3-hourly observations for
 !    India and Sri Lanka and stores valid data in a storage array.
 !    \textbf{Method} \newline
 !    - ensure the observation is for India or Sri Lanka
-!    - ensure observation has a valid latitude, longitude, 
+!    - ensure observation has a valid latitude, longitude,
 !      and at least one valid precip amount. \newline
 !    - if there is a valid 24 hourly amount... \newline
 !      - if amount is zero, then we know the 12 and 6 hourly amounts
@@ -59,15 +60,16 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
 !    - if the observation is from india... \newline
 !      - if amount is less than 1 mm, as indicated by a flag
 !        of -91 thru -98, set amount to 1 mm. \newline
-!      - store amount in miscellaneous and 24-hourly part of 
+!      - store amount in miscellaneous and 24-hourly part of
 !        obs data structure
-!    - if the observation is from Sri Lanka \& the duration is 3 hour... \newline
+!    - if the observation is from Sri Lanka \& the duration is
+!        3 hour... \newline
 !      - if amount is less than 1 mm, as indicated by a flag
 !        of -91 thru -98, set amount to 1 mm. \newline
-!      - store amount in miscellaneous part of 
+!      - store amount in miscellaneous part of
 !        obs data structure
 !
-!  The arguments and variables are: 
+!  The arguments and variables are:
 !  \begin{description}
 !   \item[bsn]       wmo block station number array
 !   \item[duration]  valid period of precipitation
@@ -78,7 +80,7 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
 !   \item[mscprc]    miscellaneous precip amounts
 !   \item[network]   JMOBS network, i.e. WMO, ICAO, FAA, etc.
 !   \item[nsize]     number of obs returned from database
-!   \item[obs]       array of processed observations 
+!   \item[obs]       array of processed observations
 !   \item[net]       JMOBS network of the observation
 !   \item[platform]  JMOBS platform ID of the observation
 !   \item[amt6]      six hourly precip amount
@@ -101,7 +103,7 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
 !   \item[india\_highlimit]     Last 5-digit WMO or 6-digit BSN for India
 !   \item[srilanka\_lowlimit]   First 5-digit WMO or 6-digit BSN for Sri Lanka
 !   \item[srilanka\_highlimit]  Last 5-digit WMO or 6-digit BSN for Sri Lanka
-!   \end{description}  
+!   \end{description}
 !EOP
   integer                        :: india_lowlimit
   integer                        :: india_highlimit
@@ -114,11 +116,11 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
   integer                        :: tempmsc
   real                           :: rlat
   real                           :: rlon
-  
+
   type rain_obs
      sequence
      character*10                 :: net
-     character*10                 :: platform
+     character*32                 :: platform ! EMK 20 Aug 2021
      integer                      :: wmonum
      real                         :: lat
      real                         :: lon
@@ -126,14 +128,16 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
      integer                      :: amt12
      integer                      :: amt6
      integer                      :: amtmsc
+     integer                      :: duration ! EMK 20 Aug 2021
+     character*2                  :: country_id ! EMK 20 Aug 2021
   end type rain_obs
-  
+
   type(rain_obs), intent(inout)  :: obs(isize)
 
 !     ------------------------------------------------------------------
-!     If observations were retrieved from CDMS use 6-digit BSN limits 
+!     If observations were retrieved from CDMS use 6-digit BSN limits
 !     for the specially processed regions
-!     Else the observations were retrieved from JMOBS use 5-digit WMO 
+!     Else the observations were retrieved from JMOBS use 5-digit WMO
 !     numbers
 !     ------------------------------------------------------------------
 
@@ -168,7 +172,7 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
 !       check for valid latitude and longitude.  if invalid skip
 !       to next ob.
 !     ------------------------------------------------------------------
-     
+
      if ( (ilat(irecord) > -99999998) .and.  &
           (ilon(irecord) > -99999998) ) then
         rlat = float(ilat(irecord)) * 0.01
@@ -176,7 +180,7 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
      else
         cycle RECORD
      end if
-     
+
 !     ------------------------------------------------------------------
 !       check for valid wmo block station number (bsn) and valid
 !       precipitation totals.  if they exist, process this ob.
@@ -185,11 +189,11 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
      if ( (twfprc(irecord) <= -99999998) .and. &
           (mscprc(irecord) <= -99999998) .and. &
           (sixprc(irecord) <= -99999998) ) cycle RECORD
-     
-        temp24  = -99999999
-        temp12  = -99999999
-        temp6   = -99999999
-        tempmsc = -99999999
+
+     temp24  = -99999999
+     temp12  = -99999999
+     temp6   = -99999999
+     tempmsc = -99999999
 
 !     ------------------------------------------------------------------
 !           in our database, negative numbers correspond to amounts
@@ -198,107 +202,106 @@ subroutine AGRMET_storeobs_offhour(nsize, isize, obs, ilat, ilon,  &
 !           stored as -98.  there are no numbers less than -98
 !     ------------------------------------------------------------------
 
-        temp24 = twfprc(irecord)
-        
-        if ( temp24 < 0 .and. temp24 > -99 ) temp24 = 1
+     temp24 = twfprc(irecord)
+
+     if ( temp24 < 0 .and. temp24 > -99 ) temp24 = 1
 
 !     ------------------------------------------------------------------
 !           if there was no rain during the previous 24 hours, then
 !           the 12 and 6 hourly amounts must be zero as well.
 !     ------------------------------------------------------------------
 
-        if (temp24 == 0) then
-           
-           temp12 = 0
-           temp6  = 0
-           
-        else
-           
-           if (duration(irecord) == 12) then
-              
-              temp12 = mscprc(irecord)
-              if (temp12 < 0 .and. temp12 > -99) temp12 = 1
-              tempmsc = mscprc(irecord)
-              if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+     if (temp24 == 0) then
+        temp12 = 0
+        temp6  = 0
+     else
+        if (duration(irecord) == 12) then
+
+           temp12 = mscprc(irecord)
+           if (temp12 < 0 .and. temp12 > -99) temp12 = 1
+           tempmsc = mscprc(irecord)
+           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
 
 !     -----------------------------------------------------------------
 !             India report precipitation as accumulations
-!             from 03z, not 24, 12 or 6 hourly amounts.  place it 
+!             from 03z, not 24, 12 or 6 hourly amounts.  place it
 !             in the miscellaneous part of the obs array.
-!             Save the miscellanous as 24-hour precip in order to 
+!             Save the miscellanous as 24-hour precip in order to
 !             separate 0-3Z from 3-6Z accumulation in processobs.
 !     -----------------------------------------------------------------
 
-           elseif ((bsn(irecord) >= india_lowlimit) .and. &
-                   (bsn(irecord) <= india_highlimit)) then
+        elseif ((bsn(irecord) >= india_lowlimit) .and. &
+             (bsn(irecord) <= india_highlimit)) then
 
-              tempmsc = mscprc(irecord)
-              if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
-              if (temp24 == -99999999) temp24 = tempmsc
+           tempmsc = mscprc(irecord)
+           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+           if (temp24 == -99999999) temp24 = tempmsc
 
-              
 !     -----------------------------------------------------------------
-!             Sri Lanka reports 3-hourly precipitation 
-!             from 03z, not 24, 12 or 6 hourly amounts.  place it 
+!             Sri Lanka reports 3-hourly precipitation
+!             from 03z, not 24, 12 or 6 hourly amounts.  place it
 !             in the miscellaneous part of the obs array.
 !     -----------------------------------------------------------------
 
-           elseif ((duration(irecord) == 3) .and. &
-                ((bsn(irecord) >= srilanka_lowlimit) .and. &
-                (bsn(irecord) <= srilanka_highlimit))) then
+        elseif ((duration(irecord) == 3) .and. &
+             ((bsn(irecord) >= srilanka_lowlimit) .and. &
+             (bsn(irecord) <= srilanka_highlimit))) then
 
-              tempmsc = mscprc(irecord)
-              if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
+           tempmsc = mscprc(irecord)
+           if (tempmsc < 0 .and. tempmsc > -99) tempmsc = 1
 
-           end if
+        end if
 
 !     ------------------------------------------------------------------
 !             if there was no rain during the past 12 hours, then
 !             the 6-hourly amount must also be zero.
 !     ------------------------------------------------------------------
 
-           if (temp12 == 0) then
-              
-              temp6   = 0
-              
-           else
-              
-              temp6 = sixprc(irecord)
+        if (temp12 == 0) then
+
+           temp6   = 0
+
+        else
+
+           temp6 = sixprc(irecord)
 
 !     ------------------------------------------------------------------
-!               set small amounts less than 1 mm to 0.01 inches. 
+!               set small amounts less than 1 mm to 0.01 inches.
 !     ------------------------------------------------------------------
 
-              if ( temp6 < 0 .and. &
-                   temp6 > -99) temp6 = 1
-              
-           end if
-           
+           if ( temp6 < 0 .and. &
+                temp6 > -99) temp6 = 1
+
         end if
 
+     end if
+
 !     ------------------------------------------------------------------
-!           if the observation has at least one reported precip 
+!           if the observation has at least one reported precip
 !           amount, store it in the obs array.
 !     ------------------------------------------------------------------
-        
-        if (temp24 >=0 .or. temp12  >=0 .or. &
-             temp6  >=0 .or. tempmsc >= 0) then
-           
-           stncnt = stncnt + 1
-           
-           obs(stncnt)%net    = network(irecord)
-           obs(stncnt)%platform = plat_id(irecord)
-           obs(stncnt)%wmonum = bsn(irecord)
-           obs(stncnt)%lat    = rlat
-           obs(stncnt)%lon    = rlon
-           
-           obs(stncnt)%amt24  = temp24
-           obs(stncnt)%amt12  = temp12
-           obs(stncnt)%amt6   = temp6
-           obs(stncnt)%amtmsc = tempmsc
-           
-        end if
-        
+
+     if (temp24 >=0 .or. temp12  >=0 .or. &
+          temp6  >=0 .or. tempmsc >= 0) then
+
+        stncnt = stncnt + 1
+
+        obs(stncnt)%net    = network(irecord)
+        obs(stncnt)%platform = plat_id(irecord)
+        obs(stncnt)%wmonum = bsn(irecord)
+        obs(stncnt)%lat    = rlat
+        obs(stncnt)%lon    = rlon
+
+        obs(stncnt)%amt24  = temp24
+        obs(stncnt)%amt12  = temp12
+        obs(stncnt)%amt6   = temp6
+        obs(stncnt)%amtmsc = tempmsc
+
+        ! EMK 20 Aug 2021
+        obs(stncnt)%duration = duration(irecord)
+        obs(stncnt)%country_id = country_id(irecord)
+     end if
+
   enddo RECORD
 
   return

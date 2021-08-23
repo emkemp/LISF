@@ -31,6 +31,8 @@
 ! 28 Aug 2018 Added IMERG...........................Eric Kemp/NASA/SSAI
 ! 21 Feb 2020 added support for 10-km GALWEM........Eric Kemp/NASA/SSAI
 ! 05 Mar 2020 added support for new GFS filename version...Eric Kemp/NASA/SSAI
+! 20 Aug 2021 added option for preobs with expanded station IDs and country
+!             IDs...................................Eric Kemp/NASA/SSAI
 !
 ! !INTERFACE:    
 subroutine readcrd_agrmet()
@@ -1080,7 +1082,20 @@ subroutine readcrd_agrmet()
           "[ERR] AGRMET WWMCA GRIB1 read option: not specified in config file")
   enddo ! n
 
-
+  ! EMK Add option to read expanded station IDs and two-character country IDs
+  call ESMF_ConfigFindLabel(LIS_config, &
+       "AGRMET Read expanded precip station IDs:", rc=rc)
+  call LIS_verify(rc, &
+       "[ERR] AGRMET Read expanded precip station IDs:" // &
+       " not specified in config file")
+  do n = 1, LIS_rc%nnest
+     call ESMF_ConfigGetAttribute(LIS_config, &
+          agrmet_struc(n)%read_expanded_precip_station_ids, rc=rc)
+     call LIS_verify(rc, &
+          "[ERR] AGRMET Read expanded precip station IDs:" // &
+          " not specified in config file")
+  end do ! n
+  
   do n=1,LIS_rc%nnest
      agrmet_struc(n)%radProcessInterval = 1
      agrmet_struc(n)%radProcessAlarmTime = 0.0

@@ -312,6 +312,7 @@ subroutine AGRMET_getpcpobs(n, j6hr, month, prcpwe, &
                       preswx(i), wmoblk(i)
 101              format(1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9 &
                       ,1x, a10, 1x, a32, 1x, a2, 1x, i9, 1x, i9, 1x, i9)
+                 if (country_id(i) .eq. "  ") country_id(i) = "??"
               else
                  ! EMK 23 Aug 2021...Added format statement
                  !read(22, *, iostat=ierr3) twfprc(i), &

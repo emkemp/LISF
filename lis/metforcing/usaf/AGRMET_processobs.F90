@@ -488,7 +488,7 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
        "06hr." // date10_min6
   ! EMK 20 Aug 2021
   if (agrmet_struc(n)%read_expanded_precip_station_ids .eq. 1) then
-     filename_min6 = filename_min6 // ".txt"
+     filename_min6 = trim(filename_min6) // ".txt"
   end if
 
   sixyes = .false.
@@ -523,6 +523,9 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
                 obs_6(i)%net, obs_6(i)%platform, obs_6(i)%lat, obs_6(i)%lon, &
                 obs_6(i)%amt24, obs_6(i)%amt12, obs_6(i)%amt6,&
                 obs_6(i)%amtmsc, obs_6(i)%duration, obs_6(i)%country_id
+           if (obs_6(i)%country_id .eq. "  ") then
+              obs_6(i)%country_id = "??"
+           end if
         else
            read(8, 6000, iostat=istat, err=100, end=100) &
                 obs_6(i)%net, obs_6(i)%platform, obs_6(i)%lat, obs_6(i)%lon, &
@@ -626,7 +629,7 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
        "06hr." // date10_min12
   ! EMK 20 Aug 2021
   if (agrmet_struc(n)%read_expanded_precip_station_ids .eq. 1) then
-     filename_min12 = filename_min12 // ".txt"
+     filename_min12 = trim(filename_min12) // ".txt"
   end if
 
   twelveyes = .false.
@@ -657,6 +660,9 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
                 obs_12(i)%lat, obs_12(i)%lon, &
                 obs_12(i)%amt24, obs_12(i)%amt12, obs_12(i)%amt6,&
                 obs_12(i)%amtmsc, obs_12(i)%duration, obs_12(i)%country_id
+           if (obs_12(i)%country_id .eq. "  ") then
+              obs_12(i)%country_id = "??"
+           end if
         else
            read (9, 6000, iostat=istat, err=200, end=200)  &
                 obs_12(i)%net, obs_12(i)%platform, obs_12(i)%lat, &
@@ -1104,7 +1110,7 @@ subroutine AGRMET_processobs(n, obs, isize, stncnt, hemi, julhr, &
           "06hr." // date10
      ! EMK 20 Aug 2021
      if (agrmet_struc(n)%read_expanded_precip_station_ids .eq. 1) then
-        filename = filename // ".txt"
+        filename = trim(filename) // ".txt"
      end if
 
      istat = 0

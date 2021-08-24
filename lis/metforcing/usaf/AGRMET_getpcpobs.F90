@@ -482,8 +482,9 @@ subroutine AGRMET_getpcpobs(n, j6hr, month, prcpwe, &
 !     format statements.
 !-----------------------------------------------------------------------
 
-6000 format(1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, a10, 1x, a10 &
-          ,1x, i9, 1x, i9, 1x, i9)
+! EMK 24 Aug 2021...Tweaked format for legacy preobs files.
+6000 format(1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, i9, 1x, a10, 2x, a10 &
+          ,i9, 1x, i9, 1x, i8)
 
 end subroutine AGRMET_getpcpobs
 

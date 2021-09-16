@@ -23,6 +23,7 @@
 import datetime
 import os
 import sys
+import time
 
 # Third-party libraries
 import numpy as np
@@ -339,6 +340,9 @@ def _finalize_avgs(avgs):
 
 def _update_monthly_s2s_values(outfile, accs, avgs):
     """Update the values in the monthly S2S file."""
+    if not os.path.exists(outfile):
+        print("[ERR] %s does not exist!" %(outfile))
+        sys.exit(1)
     ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
     for dictionary in [accs, avgs]:
         for varname in dictionary:
@@ -352,6 +356,57 @@ def _update_monthly_s2s_values(outfile, accs, avgs):
             elif len(var.shape) == 2:
                 var[:,:] = dictionary[varname][:,:]
     ncid.close()
+
+def _add_time_data(infile, outfile, startdate, enddate):
+    """Add time information to outfile, matching CF convention.  This
+    requires pulling more data from the last daily file."""
+
+    if not os.path.exists(infile):
+        print("[ERR] %s does not exist!" %(infile))
+        sys.exit(1)
+    ncid_in = nc4_dataset(infile, 'r', format='NETCDF4_CLASSIC')
+    if not os.path.exists(outfile):
+        print("[ERR] %s does not exist!" %(outfile))
+        sys.exit(1)
+    ncid_out = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
+
+    # Copy the time array from the last daily file.
+    var_in = ncid_in.variables["time"]
+    var_out = ncid_out.createVariable("time", var_in.datatype,
+                                      dimensions=var_in.dimensions,
+                                      zlib=True,
+                                      complevel=1,
+                                      shuffle=True)
+    for attrname in var_in.__dict__:
+        if attrname == "_FillValue":
+            continue
+        var_out.setncattr(attrname, var_in.__dict__[attrname])
+    var_out[:] = var_in[:]
+
+    # Copy the time_bnds array from the last daily file.  But, we will change
+    # the value to span one month of data.
+    var_in = ncid_in.variables["time_bnds"]
+    var_out = ncid_out.createVariable("time_bnds", var_in.datatype,
+                                      dimensions=var_in.dimensions,
+                                      zlib=True,
+                                      complevel=1,
+                                      shuffle=True)
+    var_out[:,:] = var_in[:,:]
+    var_out[0,0] = (enddate - startdate).days * (-24*60) # Days to minutes
+    var_out[0,1] = 0
+
+    ncid_in.close()
+    ncid_out.close()
+
+def _cleanup_global_attrs(outfile):
+    """Clean-up global attributes."""
+    if not os.path.exists(outfile):
+        print("[ERR] %s does not exist!" %(outfile))
+        sys.exit(1)
+    ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
+    ncid.history = "created on date: %s" %(time.ctime())
+    del ncid.NCO
+    del ncid.history_of_appended_files
 
 def _driver():
     """Main driver."""
@@ -379,6 +434,11 @@ def _driver():
     _update_monthly_s2s_values(tmp_outfile, accs, avgs)
     del accs
     del avgs
+
+    # Clean up a few details.
+    infile = _create_daily_s2s_filename(input_dir, enddate)
+    _add_time_data(infile, tmp_outfile, startdate, enddate)
+    _cleanup_global_attrs(tmp_outfile)
 
     # Rename the output file
     outfile = _create_monthly_s2s_filename(output_dir, startdate,

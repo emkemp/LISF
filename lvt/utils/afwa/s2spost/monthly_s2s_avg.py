@@ -11,7 +11,6 @@
 # REQUIREMENTS as of 16 Sep 2021:
 # * Python 3.8 or higher
 # * UNIDATA NetCDF4 Python library
-# * NumPy Python library.
 #
 # REVISION HISTORY:
 # 16 Sep 2021: Eric Kemp (SSAI), first version.
@@ -26,7 +25,6 @@ import sys
 import time
 
 # Third-party libraries
-import numpy as np
 # NOTE: pylint cannot see the Dataset class in netCDF4 since the latter is not
 # written in Python.  We therefore disable a check for this line to avoid a
 # known false alarm.

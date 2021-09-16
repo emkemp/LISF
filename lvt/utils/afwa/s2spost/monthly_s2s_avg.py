@@ -174,14 +174,7 @@ def _create_firstguess_monthly_file(infile, outfile):
     # Copy the constant and avg fields
     for varname in _CONST_LIST + _VAR_AVG_LIST:
         var_in = ncid_in.variables[varname]
-        if "_FillValue" in var_in.__dict__:
-            var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                              dimensions=var_in.dimensions,
-                                              zlib=True,
-                                              complevel=1,
-                                              shuffle=True,
-                                              fill_value=var_in._FillValue)
-        elif "missing_value" in var_in.__dict__:
+        if "missing_value" in var_in.__dict__:
             var_out = ncid_out.createVariable(varname, var_in.datatype,
                                               dimensions=var_in.dimensions,
                                               zlib=True,
@@ -214,14 +207,7 @@ def _create_firstguess_monthly_file(infile, outfile):
 
         varname_tavg = "%s_tavg" %(orig_varname)
         for varname in [orig_varname, varname_tavg]:
-            if "_FillValue" in var_in.__dict__:
-                var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                                  dimensions=var_in.dimensions,
-                                                  zlib=True,
-                                                  complevel=1,
-                                                  shuffle=True,
-                                                  fill_value=var_in._FillValue)
-            elif "missing_value" in var_in.__dict__:
+            if "missing_value" in var_in.__dict__:
                 var_out = ncid_out.createVariable(varname, var_in.datatype,
                                                   dimensions=var_in.dimensions,
                                                   zlib=True,

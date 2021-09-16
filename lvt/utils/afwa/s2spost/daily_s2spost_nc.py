@@ -29,6 +29,7 @@
 """
 
 # Standard modules
+import datetime
 import os
 import subprocess
 import sys
@@ -51,8 +52,10 @@ _NCO_DIR = "/usr/local/other/nco/5.0.1/bin" # On Discover
 
 def _usage():
     """Print command line usage."""
-    txt = "[INFO] Usage: %s ldt_file noahmp_file hymap2_file output_dir" \
-          %(sys.argv[0])
+    txt = \
+        "[INFO] Usage: %s ldt_file noahmp_file hymap2_file output_dir" \
+        %(sys.argv[0])
+    txt += " YYYYMMDDHH"
     print(txt)
     print("[INFO]  where:")
     print("[INFO]  ldt_file: LDT netCDF param file (for landmask)")
@@ -60,6 +63,7 @@ def _usage():
     txt = "[INFO]  hymap2_file: LIS-HYMAP2 netCDF file (2d ensemble gridspace)"
     print(txt)
     print("[INFO]  output_dir: Directory to write merged output")
+    print("[INFO]  YYYYMMDDHH is valid year,month,day,hour of data (in UTC)")
 
 def _check_nco_binaries():
     """Check to see if necessary NCO binaries are available."""
@@ -85,7 +89,7 @@ def _read_cmd_args():
     """Read command line arguments."""
 
     # Check if argument count is correct.
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
@@ -109,7 +113,39 @@ def _read_cmd_args():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    return ldt_file, noahmp_file, hymap2_file, output_dir
+    # Get valid date and time of data.
+    yyyymmddhh = sys.argv[5]
+
+    if len(yyyymmddhh) != 10:
+        print("[ERR] Invalid length for YYYYMMDDHH, must be 10 characters!")
+        sys.exit(1)
+    year = int(yyyymmddhh[0:4])
+    month = int(yyyymmddhh[4:6])
+    day = int(yyyymmddhh[6:8])
+    hour = int(yyyymmddhh[8:10])
+
+    try:
+        curdt = datetime.datetime(year, month, day, hour)
+    except ValueError:
+        print("[ERR] Invalid YYYYMMDDHH passed to script!")
+        sys.exit(1)
+
+    return ldt_file, noahmp_file, hymap2_file, output_dir, curdt
+
+def _create_final_filename(output_dir, curdt):
+    """Create final filename, following 557 convention."""
+    name = "%s" %(output_dir)
+    name += "/PS.557WW"
+    name += "_SC.U"
+    name += "_DI.C"
+    name += "_GP.LIS-S2S"
+    name += "_GR.C0P25DEG"
+    name += "_AR.AFRICA"
+    name += "_PA.LIS-S2S"
+    name += "_DD.%4.4d%2.2d%2.2d" %(curdt.year, curdt.month, curdt.day)
+    name += "_DT.%2.2d00" %(curdt.hour)
+    name += "_DF.NC"
+    return name
 
 def _merge_files(ldt_file, noahmp_file, hymap2_file, merge_file):
     """Copy LDT, NoahMP and HYMAP2 fields into same file."""
@@ -444,10 +480,9 @@ def _driver():
     _check_nco_binaries()
 
     # Get the file and directory names
-    ldt_file, noahmp_file, hymap2_file, output_dir = _read_cmd_args()
-    merge_file = "%s/merge.nc" %(output_dir)
-    # NOTE: Add logic for Air Force production filename convention. FIXME
-    final_file = "%s/final.nc" %(output_dir)
+    ldt_file, noahmp_file, hymap2_file, output_dir, curdt = _read_cmd_args()
+    merge_file = "%s/merge_tmp.nc" %(output_dir)
+    final_file = _create_final_filename(output_dir, curdt)
 
     # Merge the LDT, NoahMP, and HYMAP2 fields into the same file.
     _merge_files(ldt_file, noahmp_file, hymap2_file, merge_file)

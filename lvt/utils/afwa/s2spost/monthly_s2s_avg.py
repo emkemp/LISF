@@ -152,6 +152,14 @@ def _create_monthly_s2s_filename(output_dir, startdate, enddate):
     name += "_DF.NC"
     return name
 
+def _copy_dims_gattrs(ncid_in, ncid_out):
+    """Copy dimensions and global attributes from one netCDF file to
+    another."""
+    for dimname in ncid_in.dimensions:
+        ncid_out.createDimension(dimname, ncid_in.dimensions[dimname].size)
+    for gattrname in ncid_in.__dict__:
+        ncid_out.setncattr(gattrname, ncid_in.__dict__[gattrname])
+
 def _create_firstguess_monthly_file(infile, outfile):
     """Read daily S2S file, and copy to monthly S2S file with a few
     extra fields.  This allows us to cleanly copy dimensions and all
@@ -166,60 +174,32 @@ def _create_firstguess_monthly_file(infile, outfile):
     # Create monthly file, copying dimensions and global attributes.
     # NOTE:  We can clean up the global attributes later in the script.
     ncid_out = nc4_dataset(outfile, "w", format='NETCDF4_CLASSIC')
-    for dimname in ncid_in.dimensions:
-        ncid_out.createDimension(dimname, ncid_in.dimensions[dimname].size)
-    for gattrname in ncid_in.__dict__:
-        ncid_out.setncattr(gattrname, ncid_in.__dict__[gattrname])
+    _copy_dims_gattrs(ncid_in, ncid_out)
 
-    # Copy the constant and avg fields
-    for varname in _CONST_LIST + _VAR_AVG_LIST:
-        var_in = ncid_in.variables[varname]
-        if "missing_value" in var_in.__dict__:
-            var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                              dimensions=var_in.dimensions,
-                                              zlib=True,
-                                              complevel=1,
-                                              shuffle=True,
-                                              fill_value=var_in.missing_value)
-        else:
-            var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                              dimensions=var_in.dimensions,
-                                              zlib=True,
-                                              complevel=1,
-                                              shuffle=True)
-        for attrname in var_in.__dict__:
-            if attrname == "_FillValue":
-                continue
-            var_out.setncattr(attrname, var_in.__dict__[attrname])
-        if len(var_out.shape) == 4:
-            var_out[:,:,:,:] = var_in[:,:,:,:]
-        elif len(var_out.shape) == 3:
-            var_out[:,:,:] = var_in[:,:,:]
-        elif len(var_out.shape) == 2:
-            var_out[:,:] = var_in[:,:]
-        elif len(var_out.shape) == 1:
-            var_out[:] = var_in[:]
-
-    # Copy the var_acc fields, and also create tavg versions.  The values
-    # will be overwritten later.
-    for orig_varname in _VAR_ACC_LIST:
+    # Copy the constant, avg, and acc fields.  For acc fields, we will
+    # also add tavg versions.
+    for orig_varname in _CONST_LIST + _VAR_AVG_LIST + _VAR_ACC_LIST:
         var_in = ncid_in.variables[orig_varname]
-
-        varname_tavg = "%s_tavg" %(orig_varname)
-        for varname in [orig_varname, varname_tavg]:
+        varnames = [orig_varname]
+        if orig_varname[-4:] == "_acc":
+            varnames.append("%s_tavg" %(orig_varname))
+        for varname in varnames:
             if "missing_value" in var_in.__dict__:
-                var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                                  dimensions=var_in.dimensions,
-                                                  zlib=True,
-                                                  complevel=1,
-                                                  shuffle=True,
+                var_out = \
+                    ncid_out.createVariable(varname, var_in.datatype,
+                                            dimensions=var_in.dimensions,
+                                            zlib=True,
+                                            complevel=1,
+                                            shuffle=True,
                                             fill_value=var_in.missing_value)
             else:
-                var_out = ncid_out.createVariable(varname, var_in.datatype,
-                                                  dimensions=var_in.dimensions,
-                                                  zlib=True,
-                                                  complevel=1,
-                                                  shuffle=True)
+                var_out = \
+                    ncid_out.createVariable(varname, var_in.datatype,
+                                            dimensions=var_in.dimensions,
+                                            zlib=True,
+                                            complevel=1,
+                                            shuffle=True)
+
             for attrname in var_in.__dict__:
                 if attrname == "_FillValue":
                     continue
@@ -230,6 +210,8 @@ def _create_firstguess_monthly_file(infile, outfile):
                 var_out[:,:,:] = var_in[:,:,:]
             elif len(var_out.shape) == 2:
                 var_out[:,:] = var_in[:,:]
+            elif len(var_out.shape) == 1:
+                var_out[:] = var_in[:]
 
     ncid_out.close()
     ncid_in.close()

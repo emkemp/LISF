@@ -516,6 +516,9 @@ def _driver():
     # Copy most data to final file, filtering out redundant older fields.
     _copy_to_final_file(merge_file, final_file)
 
+    # Delete temporary merge file.
+    os.unlink(merge_file)
+
 # Invoke the main driver
 if __name__ == "__main__":
     _driver()

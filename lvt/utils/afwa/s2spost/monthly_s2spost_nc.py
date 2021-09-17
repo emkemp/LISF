@@ -37,18 +37,23 @@ from netCDF4 import Dataset as nc4_dataset
 
 _VAR_ACC_LIST = ["Qs_acc", "Qsb_acc", "TotalPrecip_acc"]
 
-_VAR_TAVG_LIST = ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
-                  "AvgSurfT_tavg", "Albedo_tavg",
-                  "SoilMoist_tavg", "SoilTemp_tavg",
-                  "TWS_inst", "GWS_inst",
-                  "Wind_f_tavg",
-                  "Tair_f_tavg", "Tair_f_min", "Tair_f_max",
-                  "Qair_f_tavg", "Psurf_f_tavg",
-                  "SWdown_f_tavg", "LWdown_f_tavg",
-                  "Streamflow_tavg", "FloodedFrac_tavg", "SurfElev_tavg",
-                  "SWS_tavg", "RiverStor_tavg", "RiverDepth_tavg",
-                  "RiverFlowVelocity_tavg", "FloodStor_tavg",
-                  "FloodedArea_tavg"]
+_VAR_TAVG_LAND_LIST = ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
+                       "AvgSurfT_tavg", "Albedo_tavg",
+                       "SoilMoist_tavg", "SoilTemp_tavg",
+                       "Streamflow_tavg", "FloodedFrac_tavg", "SurfElev_tavg",
+                       "SWS_tavg", "RiverStor_tavg", "RiverDepth_tavg",
+                       "RiverFlowVelocity_tavg", "FloodStor_tavg",
+                       "FloodedArea_tavg"]
+
+_VAR_TAVG_F_LIST = ["Wind_f_tavg", "Tair_f_tavg",
+                    "Qair_f_tavg", "Psurf_f_tavg",
+                    "SWdown_f_tavg", "LWdown_f_tavg"]
+
+
+_VAR_TAVG_TWSGWS_LIST = ["TWS_inst", "GWS_inst"]
+
+_VAR_TAIR_MAX_LIST = ["Tair_f_max"]
+_VAR_TAIR_MIN_LIST = ["Tair_f_min"]
 
 _VAR_INST_LIST = ["AvgSurfT_inst", "SWE_inst", "SnowDepth_inst",
                   "SoilMoist_inst", "SoilTemp_inst",
@@ -176,8 +181,10 @@ def _create_firstguess_monthly_file(infile, outfile):
     ncid_out = nc4_dataset(outfile, "w", format='NETCDF4_CLASSIC')
     _copy_dims_gattrs(ncid_in, ncid_out)
 
-    # Copy the constant, tavg, acc, and inst fields.
-    varnames = _CONST_LIST + _VAR_TAVG_LIST + _VAR_ACC_LIST + _VAR_INST_LIST
+    # Copy the fields.
+    varnames = _CONST_LIST + _VAR_INST_LIST + _VAR_ACC_LIST + \
+        _VAR_TAVG_LAND_LIST + _VAR_TAVG_F_LIST + _VAR_TAVG_TWSGWS_LIST + \
+        _VAR_TAIR_MAX_LIST + _VAR_TAIR_MIN_LIST
     for varname in varnames:
         var_in = ncid_in.variables[varname]
         if "missing_value" in var_in.__dict__:
@@ -227,7 +234,9 @@ def _read_second_daily_file(infile):
     tavgs["counter"] = 1
 
     # Copy the values of the fields we will average or accumulate
-    for varname in _VAR_TAVG_LIST:
+    varnames = _VAR_TAVG_LAND_LIST + _VAR_TAVG_F_LIST + \
+        _VAR_TAVG_TWSGWS_LIST + _VAR_TAIR_MAX_LIST + _VAR_TAIR_MIN_LIST
+    for varname in varnames:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
             tavgs[varname] = var_in[:,:,:,:]
@@ -259,7 +268,9 @@ def _read_next_daily_file(infile, accs, tavgs):
     tavgs["counter"] += 1
 
     # Add the values of the fields we will average or accumulate
-    for varname in _VAR_TAVG_LIST:
+    varnames = _VAR_TAVG_LAND_LIST + _VAR_TAVG_F_LIST + \
+        _VAR_TAVG_TWSGWS_LIST + _VAR_TAIR_MAX_LIST + _VAR_TAIR_MIN_LIST
+    for varname in varnames:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
             tavgs[varname][:,:,:,:] += var_in[:,:,:,:]
@@ -353,51 +364,52 @@ def _add_time_data(infile, outfile, startdate, enddate):
     ncid_in.close()
     ncid_out.close()
 
-def _update_var_attrs(outfile):
-    """Update attributes for select variables."""
+def _update_cell_methods(outfile):
+    """Update cell_method attributes for select variables."""
 
     if not os.path.exists(outfile):
         print("[ERR] %s does not exist!" %(outfile))
         sys.exit(1)
     ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
 
-    # Elaborate time-averaging of most variables
-    for varname in _VAR_TAVG_LIST:
+    # Elaborate on monthly calculations of most variables
+    varnames = _VAR_ACC_LIST + _VAR_TAVG_LAND_LIST + _VAR_TAVG_F_LIST + \
+        _VAR_TAVG_TWSGWS_LIST + _VAR_TAIR_MAX_LIST + _VAR_TAIR_MIN_LIST
+
+    for varname in varnames:
 
         var = ncid.variables[varname]
 
         # Special handling for TWS_inst and GWS_inst -- we want the monthly
         # means.
-        if varname in ["TWS_inst", "GWS_inst"]:
+        if varname in _VAR_TAVG_TWSGWS_LIST:
             var.cell_methods = \
                 "time: mean (interval: 1 day) area: point where land"
 
         # Special handling for Tair_f_max and Tair_f_min:  We want the monthly
         # averages of the daily maxs and mins
-        elif varname == "Tair_f_max":
+        elif varname in _VAR_TAIR_MAX_LIST:
             var.cell_methods = \
                 "time: mean (interval: 1 day comment: daily maxima)"
-        elif varname == "Tair_f_min":
+        elif varname in _VAR_TAIR_MIN_LIST:
             var.cell_methods = \
                 "time: mean (interval: 1 day comment: daily minima)"
 
         # Clarify monthly mean of daily means over land
-        elif varname in ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
-                         "AvgSurfT_tavg", "Albedo_tavg", "SoilMoist_tavg",
-                         "SoilTemp_tavg",
-                         "Streamflow_tavg", "FloodedFrac_tavg",
-                         "SurfElev_tavg", "SWS_tavg", "RiverStor_tavg",
-                         "RiverDepth_tavg", "RiverFlowVelocity_tavg",
-                        "FloodStor_tavg", "FloodedArea_tavg"]:
+        elif varname in _VAR_TAVG_LAND_LIST:
             var.cell_methods = \
                 "time: mean (interval: 1 day comment: daily means)" + \
                 " area: point where land"
 
         # Clarify monthly mean of daily means everywhere
-        elif varname in ["Wind_f_tavg", "Tair_f_tavg", "Qair_f_tavg",
-                         "Psurf_f_tavg", "SWdown_f_tavg", "LWdown_f_tavg"]:
+        elif varname in _VAR_TAVG_F_LIST:
             var.cell_methods = \
                 "time: mean (interval: 1 day comment: daily means)"
+
+        # Clarify monthly accumulations
+        elif varname in _VAR_ACC_LIST:
+            var.cell_methods = \
+                "time: sum (interval: 1 day comment: daily sums)"
 
     ncid.close()
 
@@ -443,7 +455,7 @@ def _driver():
     # Clean up a few details.
     infile = _create_daily_s2s_filename(input_dir, enddate)
     _add_time_data(infile, tmp_outfile, startdate, enddate)
-    _update_var_attrs(tmp_outfile)
+    _update_cell_methods(tmp_outfile)
     _cleanup_global_attrs(tmp_outfile)
 
     # Rename the output file

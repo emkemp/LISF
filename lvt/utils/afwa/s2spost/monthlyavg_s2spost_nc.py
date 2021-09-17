@@ -3,7 +3,7 @@
 """
 #------------------------------------------------------------------------------
 #
-# SCRIPT: monthly_s2s_avg.py
+# SCRIPT: monthlyavg_s2spost_nc.py
 #
 # PURPOSE: Read daily S2S CF-convention netCDF files, calculate monthly
 # averages, and write to new CF-convention netCDF file.
@@ -145,7 +145,7 @@ def _create_monthly_s2s_filename(output_dir, startdate, enddate):
     name += "_GR.C0P25DEG"
     name += "_AR.AFRICA"
     name += "_PA.LIS-S2S"
-    name += "_D_.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" \
+    name += "_DP_.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" \
         %(startdate.year, startdate.month, startdate.day,
           enddate.year, enddate.month, enddate.day)
     name += "_TP.0000-0000"
@@ -172,46 +172,41 @@ def _create_firstguess_monthly_file(infile, outfile):
     ncid_in = nc4_dataset(infile, 'r', format='NETCDF4_CLASSIC')
 
     # Create monthly file, copying dimensions and global attributes.
-    # NOTE:  We can clean up the global attributes later in the script.
+    # NOTE:  We clean up the global attributes later in the script.
     ncid_out = nc4_dataset(outfile, "w", format='NETCDF4_CLASSIC')
     _copy_dims_gattrs(ncid_in, ncid_out)
 
-    # Copy the constant, avg, and acc fields.  For acc fields, we will
-    # also add tavg versions.
-    for orig_varname in _CONST_LIST + _VAR_AVG_LIST + _VAR_ACC_LIST:
-        var_in = ncid_in.variables[orig_varname]
-        varnames = [orig_varname]
-        if orig_varname[-4:] == "_acc":
-            varnames.append("%s_tavg" %(orig_varname))
-        for varname in varnames:
-            if "missing_value" in var_in.__dict__:
-                var_out = \
-                    ncid_out.createVariable(varname, var_in.datatype,
-                                            dimensions=var_in.dimensions,
-                                            zlib=True,
-                                            complevel=1,
-                                            shuffle=True,
-                                            fill_value=var_in.missing_value)
-            else:
-                var_out = \
-                    ncid_out.createVariable(varname, var_in.datatype,
-                                            dimensions=var_in.dimensions,
-                                            zlib=True,
-                                            complevel=1,
-                                            shuffle=True)
+    # Copy the constant, avg, and acc fields.
+    for varname in _CONST_LIST + _VAR_AVG_LIST + _VAR_ACC_LIST:
+        var_in = ncid_in.variables[varname]
+        if "missing_value" in var_in.__dict__:
+            var_out = \
+                ncid_out.createVariable(varname, var_in.datatype,
+                                        dimensions=var_in.dimensions,
+                                        zlib=True,
+                                        complevel=1,
+                                        shuffle=True,
+                                        fill_value=var_in.missing_value)
+        else:
+            var_out = \
+                ncid_out.createVariable(varname, var_in.datatype,
+                                        dimensions=var_in.dimensions,
+                                        zlib=True,
+                                        complevel=1,
+                                        shuffle=True)
 
-            for attrname in var_in.__dict__:
-                if attrname == "_FillValue":
-                    continue
-                var_out.setncattr(attrname, var_in.__dict__[attrname])
-            if len(var_out.shape) == 4:
-                var_out[:,:,:,:] = var_in[:,:,:,:]
-            elif len(var_out.shape) == 3:
-                var_out[:,:,:] = var_in[:,:,:]
-            elif len(var_out.shape) == 2:
-                var_out[:,:] = var_in[:,:]
-            elif len(var_out.shape) == 1:
-                var_out[:] = var_in[:]
+        for attrname in var_in.__dict__:
+            if attrname == "_FillValue":
+                continue
+            var_out.setncattr(attrname, var_in.__dict__[attrname])
+        if len(var_out.shape) == 4:
+            var_out[:,:,:,:] = var_in[:,:,:,:]
+        elif len(var_out.shape) == 3:
+            var_out[:,:,:] = var_in[:,:,:]
+        elif len(var_out.shape) == 2:
+            var_out[:,:] = var_in[:,:]
+        elif len(var_out.shape) == 1:
+            var_out[:] = var_in[:]
 
     ncid_out.close()
     ncid_in.close()
@@ -240,15 +235,11 @@ def _read_first_daily_file(infile):
             avgs[varname] = var_in[:,:]
     for varname in _VAR_ACC_LIST:
         var_in = ncid_in.variables[varname]
-        varname_tavg = "%s_tavg" %(varname)
         if len(var_in.shape) == 4:
-            avgs[varname_tavg] = var_in[:,:,:,:]
             accs[varname] = var_in[:,:,:,:]
         elif len(var_in.shape) == 3:
-            avgs[varname_tavg] = var_in[:,:,:]
             accs[varname] = var_in[:,:,:]
         elif len(var_in.shape) == 2:
-            avgs[varname_tavg] = var_in[:,:]
             accs[varname] = var_in[:,:]
 
     ncid_in.close()
@@ -276,15 +267,11 @@ def _read_next_daily_file(infile, accs, avgs):
             avgs[varname][:,:] += var_in[:,:]
     for varname in _VAR_ACC_LIST:
         var_in = ncid_in.variables[varname]
-        varname_tavg = "%s_tavg" %(varname)
         if len(var_in.shape) == 4:
-            avgs[varname_tavg][:,:,:,:] += var_in[:,:,:,:]
             accs[varname][:,:,:,:] = var_in[:,:,:,:]
         elif len(var_in.shape) == 3:
-            avgs[varname_tavg][:,:,:] = var_in[:,:,:]
             accs[varname][:,:,:] = var_in[:,:,:]
         elif len(var_in.shape) == 2:
-            avgs[varname_tavg][:,:] = var_in[:,:]
             accs[varname][:,:] = var_in[:,:]
 
     ncid_in.close()
@@ -358,7 +345,8 @@ def _add_time_data(infile, outfile, startdate, enddate):
                                       complevel=1,
                                       shuffle=True)
     var_out[:,:] = var_in[:,:]
-    var_out[0,0] = (enddate - startdate).days * (-24*60) # Days to minutes
+    # Count number of minutes between start and end dates.
+    var_out[0,0] = ((enddate - startdate).days)  * (-24*60) # Days to minutes
     var_out[0,1] = 0
 
     ncid_in.close()

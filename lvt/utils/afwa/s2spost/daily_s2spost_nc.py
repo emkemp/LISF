@@ -24,6 +24,8 @@
 # 14 Sep 2021: Eric Kemp (SSAI), refactored to please cfchecker and pylint.
 # 15 Sep 2021: Eric Kemp (SSAI), added reading landmask from LDT param file.
 # 16 Sep 2021: Eric Kemp (SSAI), renamed.
+# 17 Sep 2021: Eric Kemp (SSAI), swapped order of soil_layer and ensemble
+#   dimensions.
 #
 #------------------------------------------------------------------------------
 """
@@ -67,7 +69,7 @@ def _usage():
 
 def _check_nco_binaries():
     """Check to see if necessary NCO binaries are available."""
-    nco_bins = ["ncap2", "ncatted", "ncks", "ncrename"]
+    nco_bins = ["ncap2", "ncatted", "ncks", "ncpdq", "ncrename"]
     for nco_bin in nco_bins:
         path = "%s/%s" %(_NCO_DIR, nco_bin)
         if not os.path.exists(path):
@@ -465,6 +467,15 @@ def _create_new_soil_moist_temp_fields(merge_file):
     cmd += " %s" %(merge_file)
     _run_cmd(cmd, "[ERR] Problem with ncap2!")
 
+def _reverse_soil_layer_ensemble_dims(merge_file):
+    """Reverse the order of the soil_layer and ensemble dimensions."""
+    tmp_file = "%s.new" %(merge_file)
+    cmd = "%s/ncpdq" %(_NCO_DIR)
+    cmd += " -a ensemble,soil_layer"
+    cmd += " %s %s" %(merge_file, tmp_file)
+    _run_cmd(cmd, "[ERR] Problem with ncpdq!")
+    os.rename(tmp_file, merge_file)
+
 def _copy_to_final_file(merge_file, final_file):
     """Copy data to new netCDF4 file, excluding "old" variables.  This should
     also screen out unneeded dimensions."""
@@ -512,6 +523,10 @@ def _driver():
     # vertical coordinate.  This is a two-step process.
     _rename_soil_moist_temp_fields(merge_file)
     _create_new_soil_moist_temp_fields(merge_file)
+
+    # Reverse order of soil_layer and ensemble dimensions, as recommended by
+    # CF convention.
+    _reverse_soil_layer_ensemble_dims(merge_file)
 
     # Copy most data to final file, filtering out redundant older fields.
     _copy_to_final_file(merge_file, final_file)

@@ -145,7 +145,7 @@ def _create_monthly_s2s_filename(output_dir, startdate, enddate):
     name += "_GR.C0P25DEG"
     name += "_AR.AFRICA"
     name += "_PA.LIS-S2S"
-    name += "_DP_.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" \
+    name += "_DP.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" \
         %(startdate.year, startdate.month, startdate.day,
           enddate.year, enddate.month, enddate.day)
     name += "_TP.0000-0000"

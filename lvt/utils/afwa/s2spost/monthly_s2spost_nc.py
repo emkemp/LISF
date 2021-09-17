@@ -14,7 +14,8 @@
 #
 # REVISION HISTORY:
 # 16 Sep 2021: Eric Kemp (SSAI), first version.
-# 17 Sep 2021: Eric Kemp (SSAI), renamed script, tweaked variable list.
+# 17 Sep 2021: Eric Kemp (SSAI), renamed script, tweaked variable list and
+#   attributes; added ID for model forcing for LIS to filenames.
 #------------------------------------------------------------------------------
 """
 
@@ -72,12 +73,14 @@ _CONST_LIST = ["lat", "lon", "ensemble", "soil_layer",
 def _usage():
     """Print command line usage."""
     txt = "[INFO] Usage: %s input_dir output_dir start_yyyymmdd end_yyyymmdd"
+    txt += " model_forcing"
     print(txt)
     print("[INFO] where:")
     print("[INFO]  input_dir: directory with daily S2S files in CF convention")
     print("[INFO]  output_dir: directory for output file")
     print("[INFO]  start_yyyymmdd: Starting date/time of daily files")
     print("[INFO]  end_yyyymmdd: Ending date/time of daily files")
+    print("[INFO]  model_forcing: ID for atmospheric forcing for LIS")
 
 def _proc_date(yyyymmdd):
     """Convert YYYYMMDD string to Python date object."""
@@ -98,7 +101,7 @@ def _read_cmd_args():
     """Read command line arguments."""
 
     # Check if argument count is correct.
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
@@ -123,30 +126,43 @@ def _read_cmd_args():
         print("[ERR] Start date is after end date!")
         sys.exit(1)
 
-    return input_dir, output_dir, startdate, enddate
+    # Get ID for model forcing for LIS
+    model_forcing = sys.argv[5]
 
-def _create_daily_s2s_filename(input_dir, curdate):
+    return input_dir, output_dir, startdate, enddate, model_forcing
+
+def _check_filename_size(name):
+    """Make sure filename does not exceed 128 characters, per Air Force
+    requirement."""
+    if len(name.split("/")[-1]) > 128:
+        print("[ERR] Output file name is too long!")
+        print("[ERR] %s exceeds 128 characters!" %(name.split("/")[-1]))
+        sys.exit(1)
+
+def _create_daily_s2s_filename(input_dir, curdate, model_forcing):
     """Create path to daily S2S netCDF file."""
     name = "%s" %(input_dir)
     name += "/PS.557WW"
     name += "_SC.U"
     name += "_DI.C"
-    name += "_GP.LIS-S2S"
+    name += "_GP.LIS-S2S-%s" %(model_forcing)
     name += "_GR.C0P25DEG"
     name += "_AR.AFRICA"
     name += "_PA.LIS-S2S"
     name += "_DD.%4.4d%2.2d%2.2d" %(curdate.year, curdate.month, curdate.day)
     name += "_DT.0000"
     name += "_DF.NC"
+    _check_filename_size(name)
     return name
 
-def _create_monthly_s2s_filename(output_dir, startdate, enddate):
+def _create_monthly_s2s_filename(output_dir, startdate, enddate,
+                                 model_forcing):
     """Create path to monthly S2S netCDF file."""
     name = "%s" %(output_dir)
     name += "/PS.557WW"
     name += "_SC.U"
     name += "_DI.C"
-    name += "_GP.LIS-S2S"
+    name += "_GP.LIS-S2S-%s" %(model_forcing)
     name += "_GR.C0P25DEG"
     name += "_AR.AFRICA"
     name += "_PA.LIS-S2S"
@@ -155,6 +171,7 @@ def _create_monthly_s2s_filename(output_dir, startdate, enddate):
           enddate.year, enddate.month, enddate.day)
     name += "_TP.0000-0000"
     name += "_DF.NC"
+    _check_filename_size(name)
     return name
 
 def _copy_dims_gattrs(ncid_in, ncid_out):
@@ -427,14 +444,14 @@ def _driver():
     """Main driver."""
 
     # Get the directories and dates
-    input_dir, output_dir, startdate, enddate = _read_cmd_args()
+    input_dir, output_dir, startdate, enddate, model_forcing = _read_cmd_args()
 
     # Loop through dates
     curdate = startdate
     seconddate = startdate + datetime.timedelta(days=1)
     delta = datetime.timedelta(days=1)
     while curdate <= enddate:
-        infile = _create_daily_s2s_filename(input_dir, curdate)
+        infile = _create_daily_s2s_filename(input_dir, curdate, model_forcing)
         print("[INFO] Reading %s" %(infile))
         if curdate == startdate:
             tmp_outfile = "%s/tmp_monthly.nc" %(output_dir)
@@ -446,21 +463,21 @@ def _driver():
         curdate += delta
 
     # Finalize averages (dividing by number of days).  Then write
-    # avgs and accs to file
+    # tavgs and accs to file
     tavgs = _finalize_tavgs(tavgs)
     _update_monthly_s2s_values(tmp_outfile, accs, tavgs)
     del accs
     del tavgs
 
     # Clean up a few details.
-    infile = _create_daily_s2s_filename(input_dir, enddate)
+    infile = _create_daily_s2s_filename(input_dir, enddate, model_forcing)
     _add_time_data(infile, tmp_outfile, startdate, enddate)
     _update_cell_methods(tmp_outfile)
     _cleanup_global_attrs(tmp_outfile)
 
     # Rename the output file
     outfile = _create_monthly_s2s_filename(output_dir, startdate,
-                                           enddate)
+                                           enddate, model_forcing)
     os.rename(tmp_outfile, outfile)
 
 # Invoke driver

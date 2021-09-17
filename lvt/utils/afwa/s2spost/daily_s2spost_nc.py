@@ -25,7 +25,7 @@
 # 15 Sep 2021: Eric Kemp (SSAI), added reading landmask from LDT param file.
 # 16 Sep 2021: Eric Kemp (SSAI), renamed.
 # 17 Sep 2021: Eric Kemp (SSAI), swapped order of soil_layer and ensemble
-#   dimensions.
+#   dimensions; added ID of model forcing for LIS to filenames.
 #
 #------------------------------------------------------------------------------
 """
@@ -57,7 +57,7 @@ def _usage():
     txt = \
         "[INFO] Usage: %s ldt_file noahmp_file hymap2_file output_dir" \
         %(sys.argv[0])
-    txt += " YYYYMMDDHH"
+    txt += " YYYYMMDDHH model_forcing"
     print(txt)
     print("[INFO]  where:")
     print("[INFO]  ldt_file: LDT netCDF param file (for landmask)")
@@ -66,6 +66,7 @@ def _usage():
     print(txt)
     print("[INFO]  output_dir: Directory to write merged output")
     print("[INFO]  YYYYMMDDHH is valid year,month,day,hour of data (in UTC)")
+    print("[INFO]  model_forcing: ID for atmospheric forcing for LIS")
 
 def _check_nco_binaries():
     """Check to see if necessary NCO binaries are available."""
@@ -81,7 +82,7 @@ def _check_nco_binaries():
 
 def _run_cmd(cmd, error_msg):
     """Handle running shell command and checking error."""
-    print(cmd)
+    #print(cmd)
     returncode = subprocess.call(cmd, shell=True)
     if returncode != 0:
         print(error_msg)
@@ -91,7 +92,7 @@ def _read_cmd_args():
     """Read command line arguments."""
 
     # Check if argument count is correct.
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 7:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
@@ -132,21 +133,28 @@ def _read_cmd_args():
         print("[ERR] Invalid YYYYMMDDHH passed to script!")
         sys.exit(1)
 
-    return ldt_file, noahmp_file, hymap2_file, output_dir, curdt
+    # Get ID of model forcing
+    model_forcing = sys.argv[6]
 
-def _create_final_filename(output_dir, curdt):
+    return ldt_file, noahmp_file, hymap2_file, output_dir, curdt, model_forcing
+
+def _create_final_filename(output_dir, curdt, model_forcing):
     """Create final filename, following 557 convention."""
     name = "%s" %(output_dir)
     name += "/PS.557WW"
     name += "_SC.U"
     name += "_DI.C"
-    name += "_GP.LIS-S2S"
+    name += "_GP.LIS-S2S-%s" %(model_forcing)
     name += "_GR.C0P25DEG"
     name += "_AR.AFRICA"
     name += "_PA.LIS-S2S"
     name += "_DD.%4.4d%2.2d%2.2d" %(curdt.year, curdt.month, curdt.day)
     name += "_DT.%2.2d00" %(curdt.hour)
     name += "_DF.NC"
+    if len(name.split("/")[-1]) > 128:
+        print("[ERR] Output file name is too long!")
+        print("[ERR] %s exceeds 128 characters!" %(name.split("/")[-1]))
+        sys.exit(1)
     return name
 
 def _merge_files(ldt_file, noahmp_file, hymap2_file, merge_file):
@@ -491,9 +499,10 @@ def _driver():
     _check_nco_binaries()
 
     # Get the file and directory names
-    ldt_file, noahmp_file, hymap2_file, output_dir, curdt = _read_cmd_args()
+    ldt_file, noahmp_file, hymap2_file, output_dir, curdt, model_forcing \
+        = _read_cmd_args()
     merge_file = "%s/merge_tmp.nc" %(output_dir)
-    final_file = _create_final_filename(output_dir, curdt)
+    final_file = _create_final_filename(output_dir, curdt, model_forcing)
 
     # Merge the LDT, NoahMP, and HYMAP2 fields into the same file.
     _merge_files(ldt_file, noahmp_file, hymap2_file, merge_file)

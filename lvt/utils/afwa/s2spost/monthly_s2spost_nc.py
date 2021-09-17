@@ -32,32 +32,32 @@ import time
 from netCDF4 import Dataset as nc4_dataset
 # pylint: enable=no-name-in-module
 
-# List of variables to average.  This is intended as an internal constant,
-# hence the name is prefixed with "_".
+# Lists of variables to process.  These are intended as internal constants,
+# hence the names are prefixed with "_".
 
 _VAR_ACC_LIST = ["Qs_acc", "Qsb_acc", "TotalPrecip_acc"]
 
-_VAR_AVG_LIST = ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
-                 "AvgSurfT_tavg", "AvgSurfT_inst", "Albedo_tavg",
-                 "SWE_inst", "SnowDepth_inst",
-                 "SoilMoist_tavg", "SoilMoist_inst",
-                 "SoilTemp_tavg", "SoilTemp_inst",
+_VAR_TAVG_LIST = ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
+                  "AvgSurfT_tavg", "Albedo_tavg",
+                  "SoilMoist_tavg", "SoilTemp_tavg",
+                  "TWS_inst", "GWS_inst",
+                  "Wind_f_tavg",
+                  "Tair_f_tavg", "Tair_f_min", "Tair_f_max",
+                  "Qair_f_tavg", "Psurf_f_tavg",
+                  "SWdown_f_tavg", "LWdown_f_tavg",
+                  "Streamflow_tavg", "FloodedFrac_tavg", "SurfElev_tavg",
+                  "SWS_tavg", "RiverStor_tavg", "RiverDepth_tavg",
+                  "RiverFlowVelocity_tavg", "FloodStor_tavg",
+                  "FloodedArea_tavg"]
+
+_VAR_INST_LIST = ["AvgSurfT_inst", "SWE_inst", "SnowDepth_inst",
+                  "SoilMoist_inst", "SoilTemp_inst",
 #                 "SmLiqFrac_inst",
-                 "CanopInt_inst", "TWS_inst", "GWS_inst", "Snowcover_inst",
-                 "Wind_f_tavg", "Wind_f_inst",
-                 "Tair_f_tavg", "Tair_f_inst", "Tair_f_min", "Tair_f_max",
-                 "Qair_f_tavg", "Qair_f_inst",
-                 "Psurf_f_tavg", "Psurf_f_inst",
-                 "SWdown_f_tavg", "SWdown_f_inst",
-                 "LWdown_f_tavg", "LWdown_f_inst",
-                 "Greenness_inst",
-#                 "RelSMC_tavg",
-                 "RelSMC_inst",
-                 "RHMin_inst",
-                 "Streamflow_tavg", "FloodedFrac_tavg", "SurfElev_tavg",
-                 "SWS_tavg", "RiverStor_tavg", "RiverDepth_tavg",
-                 "RiverFlowVelocity_tavg", "FloodStor_tavg",
-                 "FloodedArea_tavg"]
+                  "CanopInt_inst",
+                  "Snowcover_inst", "Wind_f_inst", "Tair_f_inst",
+                  "Qair_f_inst", "Psurf_f_inst",
+                  "SWdown_f_inst", "LWdown_f_inst",
+                  "Greenness_inst", "RelSMC_inst"]
 
 _CONST_LIST = ["lat", "lon", "ensemble", "soil_layer",
                "soil_layer_thickness",
@@ -161,9 +161,9 @@ def _copy_dims_gattrs(ncid_in, ncid_out):
         ncid_out.setncattr(gattrname, ncid_in.__dict__[gattrname])
 
 def _create_firstguess_monthly_file(infile, outfile):
-    """Read daily S2S file, and copy to monthly S2S file with a few
-    extra fields.  This allows us to cleanly copy dimensions and all
-    attributes.  The numerical values of the arrays in the monthly S2S
+    """Read daily S2S file, and most fields copy to monthly S2S file.
+    This allows us to cleanly copy dimensions and all attributes.  The
+    numerical values of the arrays in the monthly S2S
     file will be replaced later in the script."""
 
     if not os.path.exists(infile):
@@ -176,8 +176,9 @@ def _create_firstguess_monthly_file(infile, outfile):
     ncid_out = nc4_dataset(outfile, "w", format='NETCDF4_CLASSIC')
     _copy_dims_gattrs(ncid_in, ncid_out)
 
-    # Copy the constant, avg, and acc fields.
-    for varname in _CONST_LIST + _VAR_AVG_LIST + _VAR_ACC_LIST:
+    # Copy the constant, tavg, acc, and inst fields.
+    varnames = _CONST_LIST + _VAR_TAVG_LIST + _VAR_ACC_LIST + _VAR_INST_LIST
+    for varname in varnames:
         var_in = ncid_in.variables[varname]
         if "missing_value" in var_in.__dict__:
             var_out = \
@@ -211,9 +212,10 @@ def _create_firstguess_monthly_file(infile, outfile):
     ncid_out.close()
     ncid_in.close()
 
-def _read_first_daily_file(infile):
-    """Read the first daily S2S file and copy the required variable values to
-    appropriate dictionaries."""
+def _read_second_daily_file(infile):
+    """Read the second daily S2S file and copy the acc and tavg fields in
+    appropriate dictionaries. We use the second file to start, since acc
+    and tavg are valid for the prior 24-hr period."""
 
     if not os.path.exists(infile):
         print("[ERR] %s does not exist!" %(infile))
@@ -221,18 +223,18 @@ def _read_first_daily_file(infile):
     ncid_in = nc4_dataset(infile, 'r', format='NETCDF4_CLASSIC')
 
     accs = {}
-    avgs = {}
-    avgs["counter"] = 1
+    tavgs = {}
+    tavgs["counter"] = 1
 
     # Copy the values of the fields we will average or accumulate
-    for varname in _VAR_AVG_LIST:
+    for varname in _VAR_TAVG_LIST:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
-            avgs[varname] = var_in[:,:,:,:]
+            tavgs[varname] = var_in[:,:,:,:]
         elif len(var_in.shape) == 3:
-            avgs[varname] = var_in[:,:,:]
+            tavgs[varname] = var_in[:,:,:]
         elif len(var_in.shape) == 2:
-            avgs[varname] = var_in[:,:]
+            tavgs[varname] = var_in[:,:]
     for varname in _VAR_ACC_LIST:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
@@ -243,9 +245,9 @@ def _read_first_daily_file(infile):
             accs[varname] = var_in[:,:]
 
     ncid_in.close()
-    return accs, avgs
+    return accs, tavgs
 
-def _read_next_daily_file(infile, accs, avgs):
+def _read_next_daily_file(infile, accs, tavgs):
     """Read next daily S2S file and copy the required variable values to
     appropriate dictionaries."""
 
@@ -254,17 +256,17 @@ def _read_next_daily_file(infile, accs, avgs):
         sys.exit(1)
     ncid_in = nc4_dataset(infile, 'r', format='NETCDF4_CLASSIC')
 
-    avgs["counter"] += 1
+    tavgs["counter"] += 1
 
     # Add the values of the fields we will average or accumulate
-    for varname in _VAR_AVG_LIST:
+    for varname in _VAR_TAVG_LIST:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
-            avgs[varname][:,:,:,:] += var_in[:,:,:,:]
+            tavgs[varname][:,:,:,:] += var_in[:,:,:,:]
         elif len(var_in.shape) == 3:
-            avgs[varname][:,:,:] += var_in[:,:,:]
+            tavgs[varname][:,:,:] += var_in[:,:,:]
         elif len(var_in.shape) == 2:
-            avgs[varname][:,:] += var_in[:,:]
+            tavgs[varname][:,:] += var_in[:,:]
     for varname in _VAR_ACC_LIST:
         var_in = ncid_in.variables[varname]
         if len(var_in.shape) == 4:
@@ -275,32 +277,31 @@ def _read_next_daily_file(infile, accs, avgs):
             accs[varname][:,:] = var_in[:,:]
 
     ncid_in.close()
-    return accs, avgs
+    return accs, tavgs
 
-def _finalize_avgs(avgs):
+def _finalize_tavgs(tavgs):
     """Finalize averages by dividing by sample size."""
-    count = avgs["counter"]
-    for varname in avgs:
+    count = tavgs["counter"]
+    del tavgs["counter"]
+    for varname in tavgs:
         if varname == "counter":
             continue
-        if len(avgs[varname].shape) == 4:
-            avgs[varname][:,:,:,:] /= count
-        elif len(avgs[varname].shape) == 3:
-            avgs[varname][:,:,:] /= count
-        elif len(avgs[varname].shape) == 2:
-            avgs[varname][:,:] /= count
-    return avgs
+        if len(tavgs[varname].shape) == 4:
+            tavgs[varname][:,:,:,:] /= count
+        elif len(tavgs[varname].shape) == 3:
+            tavgs[varname][:,:,:] /= count
+        elif len(tavgs[varname].shape) == 2:
+            tavgs[varname][:,:] /= count
+    return tavgs
 
-def _update_monthly_s2s_values(outfile, accs, avgs):
+def _update_monthly_s2s_values(outfile, accs, tavgs):
     """Update the values in the monthly S2S file."""
     if not os.path.exists(outfile):
         print("[ERR] %s does not exist!" %(outfile))
         sys.exit(1)
     ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
-    for dictionary in [accs, avgs]:
+    for dictionary in [accs, tavgs]:
         for varname in dictionary:
-            if varname == "counter":
-                continue
             var = ncid.variables[varname]
             if len(var.shape) == 4:
                 var[:,:,:,:] = dictionary[varname][:,:,:,:]
@@ -370,6 +371,7 @@ def _driver():
 
     # Loop through dates
     curdate = startdate
+    seconddate = startdate + datetime.timedelta(days=1)
     delta = datetime.timedelta(days=1)
     while curdate <= enddate:
         print(curdate)
@@ -377,17 +379,18 @@ def _driver():
         if curdate == startdate:
             tmp_outfile = "%s/tmp_monthly.nc" %(output_dir)
             _create_firstguess_monthly_file(infile, tmp_outfile)
-            accs, avgs = _read_first_daily_file(infile)
+        elif curdate == seconddate:
+            accs, tavgs = _read_second_daily_file(infile)
         else:
-            accs, avgs = _read_next_daily_file(infile, accs, avgs)
+            accs, tavgs = _read_next_daily_file(infile, accs, tavgs)
         curdate += delta
 
     # Finalize averages (dividing by number of days).  Then write
     # avgs and accs to file
-    avgs = _finalize_avgs(avgs)
-    _update_monthly_s2s_values(tmp_outfile, accs, avgs)
+    tavgs = _finalize_tavgs(tavgs)
+    _update_monthly_s2s_values(tmp_outfile, accs, tavgs)
     del accs
-    del avgs
+    del tavgs
 
     # Clean up a few details.
     infile = _create_daily_s2s_filename(input_dir, enddate)

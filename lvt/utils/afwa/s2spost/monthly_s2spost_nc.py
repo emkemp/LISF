@@ -353,6 +353,34 @@ def _add_time_data(infile, outfile, startdate, enddate):
     ncid_in.close()
     ncid_out.close()
 
+def _update_var_attrs(outfile):
+    """Update attributes for select variables."""
+
+    if not os.path.exists(outfile):
+        print("[ERR] %s does not exist!" %(outfile))
+        sys.exit(1)
+    ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
+
+    # Special handling for TWS_inst and GWS_inst -- we want the monthly
+    # means.
+    TWS_inst = ncid.variables["TWS_inst"]
+    TWS_inst.cell_methods = \
+            "time: mean (interval: 1 day) area: point where land"
+    GWS_inst = ncid.variables["GWS_inst"]
+    GWS_inst.cell_methods = \
+            "time: mean (interval: 1 day) area: point where land"
+
+    # Special handling for Tair_f_max and Tair_f_min:  We want the monthly
+    # averages of the daily maxs and mins
+    Tair_f_max = ncid.variables["Tair_f_max"]
+    Tair_f_max.cell_methods = \
+        "time: mean (interval: 1 day comment: daily maximum)"
+    Tair_f_min = ncid.variables["Tair_f_min"]
+    Tair_f_min.cell_methods = \
+        "time: mean (interval: 1 day comment: daily minimum)"
+
+    ncid.close()
+
 def _cleanup_global_attrs(outfile):
     """Clean-up global attributes."""
     if not os.path.exists(outfile):
@@ -374,8 +402,8 @@ def _driver():
     seconddate = startdate + datetime.timedelta(days=1)
     delta = datetime.timedelta(days=1)
     while curdate <= enddate:
-        print(curdate)
         infile = _create_daily_s2s_filename(input_dir, curdate)
+        print("[INFO] Reading %s" %(infile))
         if curdate == startdate:
             tmp_outfile = "%s/tmp_monthly.nc" %(output_dir)
             _create_firstguess_monthly_file(infile, tmp_outfile)
@@ -395,6 +423,7 @@ def _driver():
     # Clean up a few details.
     infile = _create_daily_s2s_filename(input_dir, enddate)
     _add_time_data(infile, tmp_outfile, startdate, enddate)
+    _update_var_attrs(tmp_outfile)
     _cleanup_global_attrs(tmp_outfile)
 
     # Rename the output file

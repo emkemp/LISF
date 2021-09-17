@@ -361,23 +361,43 @@ def _update_var_attrs(outfile):
         sys.exit(1)
     ncid = nc4_dataset(outfile, 'a', format='NETCDF4_CLASSIC')
 
-    # Special handling for TWS_inst and GWS_inst -- we want the monthly
-    # means.
-    TWS_inst = ncid.variables["TWS_inst"]
-    TWS_inst.cell_methods = \
-            "time: mean (interval: 1 day) area: point where land"
-    GWS_inst = ncid.variables["GWS_inst"]
-    GWS_inst.cell_methods = \
-            "time: mean (interval: 1 day) area: point where land"
+    # Elaborate time-averaging of most variables
+    for varname in _VAR_TAVG_LIST:
 
-    # Special handling for Tair_f_max and Tair_f_min:  We want the monthly
-    # averages of the daily maxs and mins
-    Tair_f_max = ncid.variables["Tair_f_max"]
-    Tair_f_max.cell_methods = \
-        "time: mean (interval: 1 day comment: daily maximum)"
-    Tair_f_min = ncid.variables["Tair_f_min"]
-    Tair_f_min.cell_methods = \
-        "time: mean (interval: 1 day comment: daily minimum)"
+        var = ncid.variables[varname]
+
+        # Special handling for TWS_inst and GWS_inst -- we want the monthly
+        # means.
+        if varname in ["TWS_inst", "GWS_inst"]:
+            var.cell_methods = \
+                "time: mean (interval: 1 day) area: point where land"
+
+        # Special handling for Tair_f_max and Tair_f_min:  We want the monthly
+        # averages of the daily maxs and mins
+        elif varname == "Tair_f_max":
+            var.cell_methods = \
+                "time: mean (interval: 1 day comment: daily maxima)"
+        elif varname == "Tair_f_min":
+            var.cell_methods = \
+                "time: mean (interval: 1 day comment: daily minima)"
+
+        # Clarify monthly mean of daily means over land
+        elif varname in ["Qle_tavg", "Qh_tavg", "Qg_tavg", "Evap_tavg",
+                         "AvgSurfT_tavg", "Albedo_tavg", "SoilMoist_tavg",
+                         "SoilTemp_tavg",
+                         "Streamflow_tavg", "FloodedFrac_tavg",
+                         "SurfElev_tavg", "SWS_tavg", "RiverStor_tavg",
+                         "RiverDepth_tavg", "RiverFlowVelocity_tavg",
+                        "FloodStor_tavg", "FloodedArea_tavg"]:
+            var.cell_methods = \
+                "time: mean (interval: 1 day comment: daily means)" + \
+                " area: point where land"
+
+        # Clarify monthly mean of daily means everywhere
+        elif varname in ["Wind_f_tavg", "Tair_f_tavg", "Qair_f_tavg",
+                         "Psurf_f_tavg", "SWdown_f_tavg", "LWdown_f_tavg"]:
+            var.cell_methods = \
+                "time: mean (interval: 1 day comment: daily means)"
 
     ncid.close()
 

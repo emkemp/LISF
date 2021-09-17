@@ -3,10 +3,10 @@
 """
 #------------------------------------------------------------------------------
 #
-# SCRIPT: monthlyavg_s2spost_nc.py
+# SCRIPT: monthly_s2spost_nc.py
 #
 # PURPOSE: Read daily S2S CF-convention netCDF files, calculate monthly
-# averages, and write to new CF-convention netCDF file.
+# averages and accumulations, and write to new CF-convention netCDF file.
 #
 # REQUIREMENTS as of 16 Sep 2021:
 # * Python 3.8 or higher
@@ -14,7 +14,7 @@
 #
 # REVISION HISTORY:
 # 16 Sep 2021: Eric Kemp (SSAI), first version.
-#
+# 17 Sep 2021: Eric Kemp (SSAI), renamed script, tweaked variable list.
 #------------------------------------------------------------------------------
 """
 

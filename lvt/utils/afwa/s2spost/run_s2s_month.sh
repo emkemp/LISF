@@ -1,12 +1,12 @@
 #!/bin/sh
 #SBATCH --job-name=s2scf
-#SBATCH --time=0:30:00
+#SBATCH --time=0:25:00
 #SBATCH --account s1189
-#SBATCH --output global.slurm.out
+##SBATCH --output global.slurm.out
 #SBATCH --ntasks=1
 #SBATCH --mail-user=eric.kemp@nasa.gov
 #SBATCH --mail-type=ALL
-#SBATCH --qos=debug
+##SBATCH --qos=debug
 #------------------------------------------------------------------------------
 #
 # SCRIPT: run_s2s_month.sh

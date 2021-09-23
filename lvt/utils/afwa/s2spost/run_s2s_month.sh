@@ -4,6 +4,7 @@
 #SBATCH --account s1189
 ##SBATCH --output global.slurm.out
 #SBATCH --ntasks=1
+#SBATCH --constraint="sky|hasw"
 #SBATCH --mail-user=eric.kemp@nasa.gov
 #SBATCH --mail-type=ALL
 ##SBATCH --qos=debug

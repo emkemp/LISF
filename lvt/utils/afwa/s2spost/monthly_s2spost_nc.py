@@ -452,7 +452,7 @@ def _driver():
     delta = datetime.timedelta(days=1)
     while curdate <= enddate:
         infile = _create_daily_s2s_filename(input_dir, curdate, model_forcing)
-        print("[INFO] Reading %s" %(infile))
+        #print("[INFO] Reading %s" %(infile))
         if curdate == startdate:
             tmp_outfile = "%s/tmp_monthly.nc" %(output_dir)
             _create_firstguess_monthly_file(infile, tmp_outfile)

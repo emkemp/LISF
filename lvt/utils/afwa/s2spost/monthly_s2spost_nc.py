@@ -58,7 +58,7 @@ _VAR_TAIR_MIN_LIST = ["Tair_f_min"]
 
 _VAR_INST_LIST = ["AvgSurfT_inst", "SWE_inst", "SnowDepth_inst",
                   "SoilMoist_inst", "SoilTemp_inst",
-#                 "SmLiqFrac_inst",
+                  "SmLiqFrac_inst",
                   "CanopInt_inst",
                   "Snowcover_inst", "Wind_f_inst", "Tair_f_inst",
                   "Qair_f_inst", "Psurf_f_inst",

@@ -26,6 +26,7 @@
 # 16 Sep 2021: Eric Kemp (SSAI), renamed.
 # 17 Sep 2021: Eric Kemp (SSAI), swapped order of soil_layer and ensemble
 #   dimensions; added ID of model forcing for LIS to filenames.
+# 23 Sep 2021: Eric Kemp (SSAI), added SmLiqFrac_inst.
 #
 #------------------------------------------------------------------------------
 """
@@ -41,12 +42,7 @@ import sys
 # "_".
 _NCO_DIR = "/usr/local/other/nco/5.0.1/bin" # On Discover
 
-# For testing. FIXME:  Delete when testing is complete.
-#ldt_file = "input/lis_input.s2s_africom.noahmp401_hymap2.merit.25km.nc"
-#noahmp_file = "input/SURFACEMODEL/201504/LIS_HIST_201504010000.d01.nc"
-#hymap_file = "input/ROUTING/201504/LIS_HIST_201504010000.d01.nc"
-#merge_file = "output/merged.nc"
-#final_file = "output/final.nc"
+
 
 # NOTE: This script is supposed to be entirely self-contained, and not to be
 # used as an imported module.  So all the function names are prefixed with "_"
@@ -286,6 +282,7 @@ def _add_cell_methods_2(cmd):
     cmd +=        "'time: mean area: point where land'"
 #    cmd += " -a cell_methods,RunoffStor_tavg,c,c,"
 #    cmd +=        "'time: mean area: point where land'"
+    cmd += " -a cell_methods,SmLiqFrac_inst,c,c,'area: point where land'"
     cmd += " -a cell_methods,Snowcover_inst,c,c,'area: point where land'"
     cmd += " -a cell_methods,SnowDepth_inst,c,c,'area: point where land'"
     cmd += " -a cell_methods,SoilMoist_inst,c,c,'area: point where land'"
@@ -356,6 +353,7 @@ def _remove_standard_names(merge_file):
     cmd += " -a standard_name,RiverFlowVelocity_tavg,d,,"
     cmd += " -a standard_name,RiverStor_tavg,d,,"
 #    cmd += " -a standard_name,RunoffStor_tavg,d,,"
+    cmd += " -a standard_name,SmLiqFrac_inst,d,,"
     cmd += " -a standard_name,SoilMoist_inst,d,,"
     cmd += " -a standard_name,SoilMoist_tavg,d,,"
     cmd += " -a standard_name,SurfElev_tavg,d,,"
@@ -375,6 +373,7 @@ def _modify_units(merge_file):
     cmd += " -a units,RelSMC_inst,m,c,'1'"
     cmd += " -a units,Qair_f_inst,m,c,'1'"
     cmd += " -a units,Qair_f_tavg,m,c,'1'"
+    cmd += " -a units,SmLiqFrac_inst,m,c,'1'"
     cmd += " -a units,SoilMoist_inst,m,c,'1'"
     cmd += " -a units,SoilMoist_tavg,m,c,'1'"
     cmd += " %s" %(merge_file)
@@ -452,6 +451,7 @@ def _rename_soil_moist_temp_fields(merge_file):
        new copies with common vertical dimension."""
     cmd = "%s/ncrename -O" %(_NCO_DIR)
     cmd += " -v RelSMC_inst,old_RelSMC_inst"
+    cmd += " -v SmLiqFrac_inst,old_SmLiqFrac_inst"
     cmd += " -v SoilMoist_inst,old_SoilMoist_inst"
     cmd += " -v SoilMoist_tavg,old_SoilMoist_tavg"
     cmd += " -v SoilTemp_inst,old_SoilTemp_inst"
@@ -464,6 +464,8 @@ def _create_new_soil_moist_temp_fields(merge_file):
     cmd = "%s/ncap2 -v" %(_NCO_DIR)
     cmd += " -s 'RelSMC_inst[$soil_layer,$ensemble,$lat,$lon]="
     cmd += "old_RelSMC_inst(:,:,:,:)'"
+    cmd += " -s 'SmLiqFrac_inst[$soil_layer,$ensemble,$lat,$lon]="
+    cmd += "old_SmLiqFrac_inst(:,:,:,:)'"
     cmd += " -s 'SoilMoist_inst[$soil_layer,$ensemble,$lat,$lon]="
     cmd += "old_SoilMoist_inst(:,:,:,:)'"
     cmd += " -s 'SoilMoist_tavg[$soil_layer,$ensemble,$lat,$lon]="
@@ -488,7 +490,8 @@ def _copy_to_final_file(merge_file, final_file):
     """Copy data to new netCDF4 file, excluding "old" variables.  This should
     also screen out unneeded dimensions."""
     cmd = "%s/ncks" %(_NCO_DIR)
-    cmd += " -x -v old_RelSMC_inst,old_SoilMoist_inst,old_SoilMoist_tavg,"
+    cmd += " -x -v old_RelSMC_inst,old_SmLiqFrac_inst,"
+    cmd += "old_SoilMoist_inst,old_SoilMoist_tavg,"
     cmd += "old_SoilTemp_inst,old_SoilTemp_tavg,old_lat,old_lon"
     cmd += " %s -7 -L 1 %s" %(merge_file, final_file)
     _run_cmd(cmd, "[ERR] Problem with ncks!")

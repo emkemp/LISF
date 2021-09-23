@@ -71,9 +71,31 @@ def _read_cmd_args():
 
     return scriptdir, ldtfile, topdatadir, startdate, model_forcing
 
+def _is_lis_output_missing(topdatadir, curdate, model_forcing):
+    """Checks for missing LIS output files."""
+    for model in ["SURFACEMODEL", "ROUTING"]:
+        filename = "%s/%s/%s/%4.4d%2.2d" %(topdatadir,
+                                           model_forcing,
+                                           model,
+                                           curdate.year,
+                                           curdate.month)
+        filename += "/LIS_HIST_%4.4d%2.2d%2.2d0000.d01.nc" %(curdate.year,
+                                                             curdate.month,
+                                                             curdate.day)
+        if not os.path.exists(filename):
+            return True
+    return False
+
 def _loop_daily(scriptdir, ldtfile, topdatadir, startdate, model_forcing):
     """Automate daily processing for given month."""
+
+    delta = datetime.timedelta(days=1)
+
+    # The very first day may be missing. Gracefully handle this
     firstdate = startdate
+    if _is_lis_output_missing(topdatadir, firstdate, model_forcing):
+        firstdate += delta
+
     if startdate.month == 12:
         enddate = datetime.datetime(year=(startdate.year + 1),
                                     month=1,
@@ -82,7 +104,6 @@ def _loop_daily(scriptdir, ldtfile, topdatadir, startdate, model_forcing):
         enddate = datetime.datetime(year=startdate.year,
                                     month=(startdate.month + 1),
                                     day=1)
-    delta = datetime.timedelta(days=1)
 
     curdate = firstdate
     while curdate <= enddate:
@@ -113,9 +134,14 @@ def _loop_daily(scriptdir, ldtfile, topdatadir, startdate, model_forcing):
 
         curdate += delta
 
-def _proc_month(scriptdir, startdate, model_forcing):
+def _proc_month(scriptdir, topdatadir, startdate, model_forcing):
     """Create the monthly CF file."""
+
+    # The very first day may be missing.  Gracefully handle this.
     firstdate = startdate
+    if _is_lis_output_missing(topdatadir, firstdate, model_forcing):
+        firstdate += datetime.timedelta(days=1)
+
     if startdate.month == 12:
         enddate = datetime.datetime(year=(startdate.year + 1),
                                     month=1,
@@ -149,7 +175,7 @@ def _driver():
 
     scriptdir, ldtfile, topdatadir, startdate, model_forcing = _read_cmd_args()
     _loop_daily(scriptdir, ldtfile, topdatadir, startdate, model_forcing)
-    _proc_month(scriptdir, startdate, model_forcing)
+    _proc_month(scriptdir, topdatadir, startdate, model_forcing)
 
 # Invoke driver
 if __name__ == "__main__":

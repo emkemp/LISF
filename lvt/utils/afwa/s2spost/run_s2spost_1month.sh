@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --job-name=s2scf
-#SBATCH --time=0:25:00
+#SBATCH --time=0:30:00
 #SBATCH --account s1189
 ##SBATCH --output global.slurm.out
 #SBATCH --ntasks=1
@@ -10,13 +10,14 @@
 ##SBATCH --qos=debug
 #------------------------------------------------------------------------------
 #
-# SCRIPT: run_s2s_month.sh
+# SCRIPT: run_s2spost_1month.sh
 #
 # DESCRIPTION: Batch job for processing one month of LIS output, producing
 # CF-convention daily and monthly files.  Most work performed by Python
 # scripts.
 #
-# USAGE: sbatch run_s2s_month.sh $LDTFILE $TOPDATADIR $YYYYMM $MODEL_FORCING
+# USAGE: sbatch run_s2spost_1month.sh $LDTFILE $TOPDATADIR $YYYYMM \
+#           $MODEL_FORCING
 #         where $LDTFILE is path to LDT parameter file
 #               $TOPDATADIR is top directory with LIS output
 #               $YYYYMM is year and month of data to process

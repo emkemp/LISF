@@ -134,9 +134,9 @@ def _read_cmd_args():
 def _check_filename_size(name):
     """Make sure filename does not exceed 128 characters, per Air Force
     requirement."""
-    if len(name.split("/")[-1]) > 128:
+    if len(os.path.basename(name)) > 128:
         print("[ERR] Output file name is too long!")
-        print("[ERR] %s exceeds 128 characters!" %(name.split("/")[-1]))
+        print("[ERR] %s exceeds 128 characters!" %(os.path.basename(name)))
         sys.exit(1)
 
 def _create_daily_s2s_filename(input_dir, curdate, model_forcing):

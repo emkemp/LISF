@@ -147,9 +147,9 @@ def _create_final_filename(output_dir, curdt, model_forcing):
     name += "_DD.%4.4d%2.2d%2.2d" %(curdt.year, curdt.month, curdt.day)
     name += "_DT.%2.2d00" %(curdt.hour)
     name += "_DF.NC"
-    if len(name.split("/")[-1]) > 128:
+    if len(os.path.basename(name)) > 128:
         print("[ERR] Output file name is too long!")
-        print("[ERR] %s exceeds 128 characters!" %(name.split("/")[-1]))
+        print("[ERR] %s exceeds 128 characters!" %(os.path.basename(name)))
         sys.exit(1)
     return name
 

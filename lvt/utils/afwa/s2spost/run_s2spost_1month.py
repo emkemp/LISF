@@ -170,12 +170,21 @@ def _proc_month(scriptdir, topdatadir, startdate, model_forcing):
         print("[ERR] Problem creating monthly file!")
         sys.exit(1)
 
+def _create_done_file(startdate, model_forcing):
+    """Create a 'done' file indicating batch job has finished."""
+    path = "./cf_%s_%4.4d%2.2d/done" %(model_forcing.upper(),
+                                       startdate.year,
+                                       startdate.month)
+    fobj = open(path, "w")
+    fobj.close()
+
 def _driver():
     """Main driver"""
 
     scriptdir, ldtfile, topdatadir, startdate, model_forcing = _read_cmd_args()
     _loop_daily(scriptdir, ldtfile, topdatadir, startdate, model_forcing)
     _proc_month(scriptdir, topdatadir, startdate, model_forcing)
+    _create_done_file(startdate, model_forcing)
 
 # Invoke driver
 if __name__ == "__main__":

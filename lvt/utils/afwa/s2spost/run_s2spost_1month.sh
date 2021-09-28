@@ -74,8 +74,6 @@ echo "[INFO] Processing $YYYYMM"
 $SCRIPTDIR/run_s2spost_1month.py $LDTFILE $TOPDATADIR $YYYYMM \
                                  $MODEL_FORCING || exit 1
 
-# Create simple marker file indicating end of run
-touch cf_${MODEL_FORCING}_${YYYYMM}/done
 
 # The end
 echo "[INFO] Finished CF processing of $YYYYMM"

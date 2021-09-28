@@ -119,14 +119,15 @@ def _check_batch_job_completion(startdate, model_forcing):
     # Loop over all months
     curdate = startdate
     for _ in range(0, _TOTAL_MONTHS):
-        subdir = "cf_%s_%4.4d%2.2d" %(model_forcing, curdate.year,
+        subdir = "cf_%s_%4.4d%2.2d" %(model_forcing.upper(), curdate.year,
                                       curdate.month)
         print("[INFO] Waiting for %s" %(subdir))
         while True:
             if os.path.exists("%s/done" %(subdir)):
-                print("[INFO] %s_%4.4d%2.2d is complete!" %(model_forcing,
-                                                            curdate.year,
-                                                            curdate.month))
+                print("[INFO] %s_%4.4d%2.2d is complete!" \
+                      %(model_forcing.upper(),
+                        curdate.year,
+                        curdate.month))
                 break
 
         newdate = _advance_date_by_month(curdate)
@@ -135,7 +136,7 @@ def _check_batch_job_completion(startdate, model_forcing):
 def _consolidate_files(startdate, model_forcing):
     """Move CF files into common directory for single model forcing."""
 
-    newdir = "cf_%s_%4.4d%2.2d_all" %(model_forcing, startdate.year,
+    newdir = "cf_%s_%4.4d%2.2d_all" %(model_forcing.upper(), startdate.year,
                                       startdate.month)
     if not os.path.exists(newdir):
         os.makedirs(newdir)
@@ -143,7 +144,7 @@ def _consolidate_files(startdate, model_forcing):
     # Loop over all months
     curdate = startdate
     for _ in range(0, _TOTAL_MONTHS):
-        subdir = "cf_%s_%4.4d%2.2d" %(model_forcing, curdate.year,
+        subdir = "cf_%s_%4.4d%2.2d" %(model_forcing.upper(), curdate.year,
                                       curdate.month)
         print("[INFO] Copying %s files to %s" %(subdir, newdir))
         files = glob.glob("%s/*.NC" %(subdir))

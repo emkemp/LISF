@@ -68,16 +68,6 @@ def _parse_metric_filename(metricfile):
         components[key] = value
     return components
 
-def _get_generating_process(metricfile, metric_filename_components):
-    """Get generating process from name of metric file."""
-    try:
-        generating_process = metric_filename_components["GP"]
-    except KeyError:
-        print("[ERR] Cannot resolve generating process from file name %s" \
-              %(metricfile))
-        sys.exit(1)
-    return generating_process
-
 def _get_startdate(metricfile, metric_filename_components):
     """Get start date from name of metric file."""
     try:
@@ -147,23 +137,6 @@ def _create_output_raster(outfile, nxx, nyy, geotransform, var2d):
     output_raster.GetRasterBand(1).WriteArray(var2d)
     return output_raster
 
-def _set_metadata(varname, long_name, units, generating_process,
-                  startdate, enddate):
-    """Create metadata dictionary for output to GeoTIFF file"""
-    metadata = {
-        "varname" : "%s" %(varname),
-        "long_name" : "%s" %(long_name),
-        "units" : "%s" %(units),
-        "generating_process" : "%s" %(generating_process),
-        "start_date" : "%4.4d%2.2d%2.2d" %(startdate.year,
-                                           startdate.month,
-                                           startdate.day),
-        "end_date" : "%4.4d%2.2d%2.2d" %(enddate.year,
-                                         enddate.month,
-                                         enddate.day)
-    }
-    return metadata
-
 def _set_newdate(date):
     """Set a new date one month in the future."""
     if date.month == 12:
@@ -212,37 +185,67 @@ def _make_geotiff_filename(varname, startdate, enddate,
     filename += "_DF.TIF"
     return filename
 
-def _driver():
-    """Main driver."""
+def _sub_driver():
+    """First part of driver."""
     metricfile = _read_cmd_args()
     metric_filename_components = _parse_metric_filename(metricfile)
-    generating_process = \
-        _get_generating_process(metricfile, metric_filename_components)
-    startdate = _get_startdate(metricfile, metric_filename_components)
+    startdate = _get_startdate(metricfile,
+                               metric_filename_components)
     lats, lons = _get_latlon(metricfile)
     geotransform = _make_geotransform(lons, lats) # lons, then lats = x, then y
     num_months = _get_num_months(metricfile)
     startdates_month, enddates_month = \
         _set_monthly_dates(startdate, num_months)
+    # We bundle these variables into a dictionary so pylint doesn't complain
+    # about too many local variables in the driver method.
+    bundle = {
+        "metricfile" : metricfile,
+        "metric_filename_components" : metric_filename_components,
+        "lats" : lats,
+        "lons" : lons,
+        "geotransform" : geotransform,
+        "num_months" : num_months,
+        "startdates_month" : startdates_month,
+        "enddates_month" : enddates_month,
+    }
+    return bundle
+
+def _driver():
+    """Main driver."""
+    # First part of driver is in own method, with return variables saved
+    # in a dictionary.  This is to appease pylint.
+    var_bundle = _sub_driver()
+    metadata = {}
+    metadata["generating_process"] = \
+        var_bundle["metric_filename_components"]["GP"]
     for varname in _VARNAMES:
-        var, units, long_name = _get_variable(varname, metricfile)
-        for imonth in range(0, num_months):
+        var, units, long_name = _get_variable(varname,
+                                              var_bundle["metricfile"])
+        metadata["varname"] = varname
+        metadata["units"] = units
+        metadata["long_name"] = long_name
+        for imonth in range(0, var_bundle["num_months"]):
+            metadata["start_date"] = "%4.4d%2.2d%2.2d" \
+                %(var_bundle["startdates_month"][imonth].year,
+                  var_bundle["startdates_month"][imonth].month,
+                  var_bundle["startdates_month"][imonth].day)
+            metadata["end_date"] = "%4.4d%2.2d%2.2d" \
+                %(var_bundle["enddates_month"][imonth].year,
+                  var_bundle["enddates_month"][imonth].month,
+                  var_bundle["enddates_month"][imonth].day)
             var2d = var[0, imonth, :, :] # For now, just use first ens member
             geotiff_filename = \
                 _make_geotiff_filename(varname,
-                                       startdates_month[imonth],
-                                       enddates_month[imonth],
-                                       metric_filename_components)
+                                       var_bundle["startdates_month"][imonth],
+                                       var_bundle["enddates_month"][imonth],
+                                      var_bundle["metric_filename_components"])
             output_raster = \
-                _create_output_raster(geotiff_filename, len(lons), len(lats),
-                                      geotransform, var2d)
-            metadata = \
-                _set_metadata(varname, long_name, units, generating_process,
-                              startdates_month[imonth],
-                              enddates_month[imonth])
+                _create_output_raster(geotiff_filename,
+                                      len(var_bundle["lons"]),
+                                      len(var_bundle["lats"]),
+                                      var_bundle["geotransform"], var2d)
             output_raster.GetRasterBand(1).SetMetadata(metadata)
             output_raster.FlushCache() # Write to disk
-
 
 # Invoke driver
 if __name__ == "__main__":

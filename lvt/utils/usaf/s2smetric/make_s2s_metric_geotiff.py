@@ -116,7 +116,7 @@ class _MetricGeoTiff:
         filename += "_GP.%s" %(self.metric_filename_elements["GP"])
         filename += "_GR.%s" %(self.metric_filename_elements["GR"])
         filename += "_AR.%s" %(self.metric_filename_elements["AR"])
-        filename += "_PA.LIS-S2S-" %(varname.upper())
+        filename += "_PA.LIS-S2S-%s" %(varname.upper())
         filename += "_DP.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" %(startdate.year,
                                                             startdate.month,
                                                             startdate.day,
@@ -135,7 +135,7 @@ class _MetricGeoTiff:
         geotransform = self.get_geotransform()
         output_raster = gdal.GetDriverByName('GTiff').Create(outfile,
                                                              nxx, nyy, 1,
-                                                             gdal.GDT_Float32)
+                                                             gdal.GDT_Float64)
         output_raster.SetGeoTransform(geotransform)
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326) # Corresponds to WGS 84

@@ -97,8 +97,8 @@ class _MetricGeoTiff:
         ymax = self.latitudes.max()
         nxx = self.longitudes.size
         nyy = self.latitudes.size
-        xres = (xmax - xmin) / float(nxx)
-        yres = (ymax - ymin) / float(nyy)
+        xres = (xmax - xmin) / float(nxx-1)
+        yres = (ymax - ymin) / float(nyy-1)
         # Below is based on gdal.org/tutorials/geotransforms_tut.html
         # xmin is x-coordinate of upper-left corner of upper-left pixel
         # ymax in y-coordinate of upper-left corner of upper-left pixel

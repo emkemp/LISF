@@ -4,7 +4,7 @@
 #
 # SCRIPT: make_s2s_metric_geotiff.py
 #
-# PURPOSE: Generates GeoTIFF files from S2S metrics netCDF file.
+# PURPOSE: Generates GeoTIFF file from S2S metrics netCDF file.
 #
 # REQUIREMENTS as of 4 Oct 2021:
 # * Python 3.8 or higher
@@ -55,7 +55,7 @@ class _MetricGeoTiff:
         # Find number of months in metrics file, and save latitudes and
         # longitudes.
         ncid = nc4_dataset(self.metricfile, 'r', format="NETCDF4_CLASSIC")
-        self.num_months = ncid.dimensions["lead"].size
+        num_months = ncid.dimensions["lead"].size
         self.latitudes = ncid.variables["latitude"][:]
         self.longitudes = ncid.variables["longitude"][:]
         ncid.close()
@@ -63,7 +63,7 @@ class _MetricGeoTiff:
         # Set start and end of each month of data in the metric file.
         self.startdates_month = []
         self.enddates_month = []
-        for imonth in range(0, self.num_months):
+        for imonth in range(0, num_months):
             if imonth == 0:
                 self.startdates_month.append(self.get_first_startdate())
                 newdate2 = _set_newdate(self.get_first_startdate())
@@ -106,42 +106,61 @@ class _MetricGeoTiff:
         # Sixth variable is n-s pixel resolution (negative for north-up image)
         return (xmin, xres, 0, ymax, 0, -1*yres)
 
-    def make_geotiff_filename(self, varname, imonth):
+    def make_geotiff_filename(self):
         """Make name of new geotiff file."""
-        startdate = self.startdates_month[imonth]
-        enddate = self.enddates_month[imonth]
         filename = "PS.%s" %(self.metric_filename_elements["PS"])
         filename += "_SC.%s" %(self.metric_filename_elements["SC"])
         filename += "_DI.%s" %(self.metric_filename_elements["DI"])
         filename += "_GP.%s" %(self.metric_filename_elements["GP"])
         filename += "_GR.%s" %(self.metric_filename_elements["GR"])
         filename += "_AR.%s" %(self.metric_filename_elements["AR"])
-        filename += "_PA.LIS-S2S-%s" %(varname.upper())
-        filename += "_DP.%4.4d%2.2d%2.2d-%4.4d%2.2d%2.2d" %(startdate.year,
-                                                            startdate.month,
-                                                            startdate.day,
-                                                            enddate.year,
-                                                            enddate.month,
-                                                            enddate.day)
+        filename += "_PA.%s" %(self.metric_filename_elements["PA"])
+        filename += "_DP.%s" %(self.metric_filename_elements["DP"])
         filename += "_TP.%s" %(self.metric_filename_elements["TP"])
         filename += "_DF.TIF"
         return filename
 
-    def create_output_raster(self, outfile, var2d):
+    def get_num_of_months(self):
+        """Fetch number of months in LIS output."""
+        ncid = nc4_dataset(self.metricfile, 'r', format="NETCDF4_CLASSIC")
+        num_months = ncid.dimensions["lead"].size
+        ncid.close()
+        return num_months
+
+    def get_ensemble_size(self):
+        """Fetch number of ensemble members in LIS output."""
+        ncid = nc4_dataset(self.metricfile, 'r', format="NETCDF4_CLASSIC")
+        num_ens = ncid.dimensions["ens"].size
+        ncid.close()
+        return num_ens
+
+    def get_num_of_fields(self):
+        """Calculate number of fields to write to GeoTIFF file."""
+        num_vars = len(_VARNAMES)
+        num_ens = self.get_ensemble_size()
+        num_months = self.get_num_of_months()
+        num_fields = num_vars * num_ens * num_months
+        return num_fields
+
+    def create_output_raster(self, outfile):
         """Create the output raster file (the GeoTIFF), including map
         projection"""
+        num_fields = self.get_num_of_fields()
         nxx = self.longitudes.size
         nyy = self.latitudes.size
         geotransform = self.get_geotransform()
+        #options = ["COMPRESS=PACKBITS"]
+        #options = ["COMPRESS=LZW"]
+        options = ["COMPRESS=NONE"]
         output_raster = gdal.GetDriverByName('GTiff').Create(outfile,
-                                                             nxx, nyy, 1,
-                                                             gdal.GDT_Float64)
+                                                             nxx, nyy,
+                                                             num_fields,
+                                                             gdal.GDT_Float64,
+                                                             options=options)
         output_raster.SetGeoTransform(geotransform)
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326) # Corresponds to WGS 84
-        output_raster.GetRasterBand(1).SetNoDataValue(-9999)
         output_raster.SetProjection(srs.ExportToWkt())
-        output_raster.GetRasterBand(1).WriteArray(var2d)
         return output_raster
 
 # Private module methods
@@ -154,6 +173,7 @@ def _usage():
 
 def _read_cmd_args():
     """Read command line arguments."""
+
     # Check if argument count is correct
     if len(sys.argv) != 2:
         print("[ERR] Invalid number of command line arguments!")
@@ -192,29 +212,38 @@ def _driver():
     """Main driver."""
     metricfile = _read_cmd_args()
     mgt = _MetricGeoTiff(metricfile)
+    geotiff_filename = mgt.make_geotiff_filename()
+    output_raster = mgt.create_output_raster(geotiff_filename)
+
+    # Set global metadata
     metadata = {}
     metadata["generating_process"] = mgt.metric_filename_elements["GP"]
+    output_raster.SetMetadata(metadata)
+
+    metadata = {}
+    num_months = mgt.get_num_of_months()
+    ensemble_size = mgt.get_ensemble_size()
+    icount = 1
     for varname in _VARNAMES:
         var, units, long_name = _get_variable(varname, mgt.metricfile)
         metadata["varname"] = varname
         metadata["units"] = units
-        metadata["long_name"] = long_name
-        for imonth in range(0, mgt.num_months):
-            metadata["start_date"] = "%4.4d%2.2d%2.2d" \
-                %(mgt.startdates_month[imonth].year,
-                  mgt.startdates_month[imonth].month,
-                  mgt.startdates_month[imonth].day)
-            metadata["end_date"] = "%4.4d%2.2d%2.2d" \
-                %(mgt.enddates_month[imonth].year,
-                  mgt.enddates_month[imonth].month,
-                  mgt.enddates_month[imonth].day)
-            var2d = var[0, imonth, :, :]
-            geotiff_filename = \
-                mgt.make_geotiff_filename(varname, imonth)
-            output_raster = \
-                mgt.create_output_raster(geotiff_filename, var2d)
-            output_raster.GetRasterBand(1).SetMetadata(metadata)
-            output_raster.FlushCache() # Write to disk
+        #metadata["long_name"] = long_name
+        for i_ens_member in range(0, ensemble_size):
+            metadata["ensemble_member"] = "%s" %(i_ens_member)
+            for imonth in range(0, num_months):
+                print("EMK: icount, varname, iens, imonth = %s %s %s %s" \
+                      %(icount, varname, i_ens_member, imonth))
+                metadata["year_and_month"] = "%4.4d-%2.2d" \
+                    %(mgt.startdates_month[imonth].year,
+                      mgt.startdates_month[imonth].month)
+                var2d = var[i_ens_member, imonth, :, :]
+                output_raster.GetRasterBand(icount).SetNoDataValue(-9999)
+                output_raster.GetRasterBand(icount).WriteArray(var2d)
+                #output_raster.GetRasterBand(icount).SetMetadata(metadata)
+                output_raster.FlushCache() # Write to disk
+                icount += 1
+    del output_raster
 
 # Invoke driver
 if __name__ == "__main__":

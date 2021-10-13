@@ -107,14 +107,15 @@ class _MetricGeoTiff:
         # Sixth variable is n-s pixel resolution (negative for north-up image)
         return (xmin, xres, 0, ymax, 0, -1*yres)
 
-    def make_geotiff_filename(self, varname, imonth):
+    def make_geotiff_filename(self, varname, i_ens_member, imonth):
         """Make name of new geotiff file."""
         startdate = self.startdates_by_month[imonth]
         enddate = self.enddates_by_month[imonth]
         filename = "PS.%s" %(self.metric_filename_elements["PS"])
         filename += "_SC.%s" %(self.metric_filename_elements["SC"])
         filename += "_DI.%s" %(self.metric_filename_elements["DI"])
-        filename += "_GP.%s" %(self.metric_filename_elements["GP"])
+        filename += "_GP.%s-%2.2d" \
+            %(self.metric_filename_elements["GP"], i_ens_member)
         filename += "_GR.%s" %(self.metric_filename_elements["GR"])
         filename += "_AR.%s" %(self.metric_filename_elements["AR"])
         filename += "_PA.LIS-S2S-%s" %(varname.replace("_","-").upper())
@@ -228,7 +229,8 @@ def _driver():
                     %(mgt.startdates_by_month[imonth].year,
                       mgt.startdates_by_month[imonth].month)
                 var2d = var[i_ens_member, imonth, :, :]
-                geotiff_filename = mgt.make_geotiff_filename(varname, imonth)
+                geotiff_filename = \
+                    mgt.make_geotiff_filename(varname, i_ens_member, imonth)
                 output_raster = mgt.create_output_raster(geotiff_filename)
                 output_raster.SetMetadata(metadata)
                 output_raster.GetRasterBand(1).SetNoDataValue(-9999)

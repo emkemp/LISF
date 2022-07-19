@@ -18,7 +18,8 @@
 ! 19 Jul 2022: Eric Kemp; Initial implementation
 !EOP
 
-subroutine LIS_avoid_null_deref(stringname, length)
+subroutine LIS_avoid_null_deref(string1, length1, &
+     string2, length2)
 
   ! Imports
   use LIS_coreMod, only: LIS_masterproc
@@ -29,16 +30,18 @@ subroutine LIS_avoid_null_deref(stringname, length)
   implicit none
 
   ! Arguments
-  character(*), intent(in) :: stringname
-  integer, intent(in) :: length
+  character(*), intent(in) :: string1
+  integer, intent(in) :: length1
+  character(*), intent(in) :: string2
+  integer, intent(in) :: length2
 
   ! Locals
   character(100) :: message(20)
   integer :: ierr
 
   ! Write to standard log
-  write(LIS_logunit,*)'[ERR] Cannot find ', stringname(1:length), &
-       ', aborting...'
+  write(LIS_logunit,*)'[ERR] Cannot find ', string1(1:length1), &
+       ' ', string2(1:length2), ', aborting...'
   flush(LIS_logunit)
 
   ! Catch all MPI processes other than the master process here.  Only the
@@ -51,7 +54,8 @@ subroutine LIS_avoid_null_deref(stringname, length)
 
   message = ''
   message(1) = '[ERR] Program: LIS'
-  message(2) = '  Cannot find '//stringname(1:length)//', aborting...'
+  message(2) = '  Cannot find '//string1(1:length1)// &
+       ' '//string2(1:length2)//', aborting...'
   call LIS_alert('LIS.avoid_null_dereference', 1, message)
   call LIS_abort(message)
 end subroutine LIS_avoid_null_deref

@@ -385,8 +385,12 @@ void FTN(lsminit)(char *j,int len)
 
   struct lsminitnode* current;
   int found;
-  int jlen;
+  char string1[4] = "LSM\0";
+  int len2;
+  int len1;
   extern void lis_avoid_null_deref_(const char *,
+                                    const int *,
+                                    const char *,
                                     const int *); /* EMK TEST */
 
   current = lsminit_table;
@@ -400,11 +404,12 @@ void FTN(lsminit)(char *j,int len)
       printf("program will seg fault.....\n"); 
       printf("****************Error****************************\n");
 
-      jlen = strlen(j);
-      lis_avoid_null_deref_(j, &jlen); /* EMK TEST */
+      len1 = 3;
+      len2 = strlen(j);
+      lis_avoid_null_deref_(string1, &len1, j, &len2); /* EMK TEST */
     }
   }
-  current->func(); 
+  current->func();
 
 }
 //BOP

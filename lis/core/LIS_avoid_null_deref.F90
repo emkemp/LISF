@@ -1,4 +1,3 @@
-
 !-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
 ! NASA Goddard Space Flight Center
 ! Land Information System Framework (LISF)
@@ -9,8 +8,8 @@
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
 !BOP
-! !ROUTINE: LIS_avoid_null_dereference
-!  \label{LIS_avoid_null_dereference}
+! !ROUTINE: LIS_avoid_null_deref
+!  \label{LIS_avoid_null_deref}
 !
 ! !DESCRIPTION: Gracefully aborts to avoid null pointer dereference.
 !

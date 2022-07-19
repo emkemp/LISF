@@ -385,7 +385,9 @@ void FTN(lsminit)(char *j,int len)
 
   struct lsminitnode* current;
   int found;
-  void avoid_null_dereference_(void); /* EMK TEST */
+  int jlen;
+  extern void lis_avoid_null_deref_(const char *,
+                                    const int *); /* EMK TEST */
 
   current = lsminit_table;
 
@@ -397,7 +399,9 @@ void FTN(lsminit)(char *j,int len)
       printf("init routine for LSM %s is not defined\n",j); 
       printf("program will seg fault.....\n"); 
       printf("****************Error****************************\n");
-      avoid_null_dereference_(); /* EMK TEST */
+
+      jlen = strlen(j);
+      lis_avoid_null_deref_(j, &jlen); /* EMK TEST */
     }
   }
   current->func(); 

@@ -388,10 +388,12 @@ void FTN(lsminit)(char *j,int len)
   char string1[4] = "LSM\0";
   int len2;
   int len1;
-  extern void lis_avoid_null_deref_(const char *,
-                                    const int *,
-                                    const char *,
-                                    const int *); /* EMK TEST */
+
+  /* Fortran function prototype */
+  extern void FTN(lis_avoid_null_deref)(const char *,
+                                        const int *,
+                                        const char *,
+                                        const int *);
 
   current = lsminit_table;
 
@@ -406,7 +408,7 @@ void FTN(lsminit)(char *j,int len)
 
       len1 = 3;
       len2 = strlen(j);
-      lis_avoid_null_deref_(string1, &len1, j, &len2); /* EMK TEST */
+      FTN(lis_avoid_null_deref)(string1, &len1, j, &len2); /* EMK TEST */
     }
   }
   current->func();

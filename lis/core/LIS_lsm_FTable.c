@@ -403,7 +403,7 @@ void FTN(lsminit)(char *j,int len)
     if(current==NULL) {
       printf("****************Error****************************\n"); 
       printf("init routine for LSM %s is not defined\n",j); 
-      printf("program will seg fault.....\n"); 
+      printf("program will abort.....\n"); 
       printf("****************Error****************************\n");
 
       len1 = 3;

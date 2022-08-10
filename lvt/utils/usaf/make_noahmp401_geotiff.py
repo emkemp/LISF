@@ -153,8 +153,8 @@ def _set_metadata(varname, units, soil_layer, model, \
 def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     """Process all layers of specified variable."""
     for i in range(0, 4): # Loop across four LSM layers
-        longname = ncid.variables[varname]["long_name"]
-        units = ncid.variables[varname]["units"]
+        long_name = ncid.variables[varname].getncattr('long_name')
+        units = ncid.variables[varname].getncattr('units')
         layervals = ncid.variables[varname][i,:,:]
         nrows, ncols = layervals.shape
         soil_layer = _SOIL_LAYERS[i]
@@ -165,7 +165,7 @@ def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
                                               geotransform, var1)
         metadata = _set_metadata(varname=long_name, units=units,
                                  soil_layer=soil_layer,
-                                 model="NoahMP 4.0.1"
+                                 model="NoahMP 4.0.1",
                                  yyyymmddhh=yyyymmddhh)
         output_raster.GetRasterBand(1).SetMetadata(metadata)
         output_raster.FlushCache() # Write to disk
@@ -173,8 +173,8 @@ def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
 
 def _proc_soilvar_2d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     """Process specified 2d variable."""
-    longname = ncid.variables[varname]["long_name"]
-    units = ncid.variables[varname]["units"]
+    long_name = ncid.variables[varname].getncattr('long_name')
+    units = ncid.variables[varname].getncattr('units')
     layervals = ncid.variables[varname][:,:]
     nrows, ncols = layervals.shape
     var1 = layervals[::-1, :]
@@ -184,7 +184,7 @@ def _proc_soilvar_2d(ncid, varname, longitudes, latitudes, yyyymmddhh):
                                           geotransform, var1)
     metadata = _set_metadata(varname=long_name, units=units,
                              soil_layer=None,
-                             model="NoahMP 4.0.1"
+                             model="NoahMP 4.0.1",
                              yyyymmddhh=yyyymmddhh)
     output_raster.GetRasterBand(1).SetMetadata(metadata)
     output_raster.FlushCache() # Write to disk
@@ -207,7 +207,7 @@ def _main():
     ncid = nc4_dataset(lvtfile, 'r', format='NETCDF4')
     for varname in _VARNAMES_3D:
         _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh)
-    for varname in _VARNAMES_2d:
+    for varname in _VARNAMES_2D:
         _proc_soilvar_2d(ncid, varname, longitudes, latitudes, yyyymmddhh)
     ncid.close()
 

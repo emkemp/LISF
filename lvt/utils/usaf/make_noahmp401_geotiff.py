@@ -112,7 +112,6 @@ def _make_geotransform(lon, lat, nxx, nyy):
     # Fourth variable is column rotation, set to zero
     # Sixth variable is n-s pixel resolution (negative for north-up image)
     geotransform = (xmin, xres, 0, ymax, 0, -1*yres)
-    #print(geotransform)
     return geotransform
 
 def _create_output_raster(outfile, nxx, nyy, geotransform, var1):
@@ -130,61 +129,131 @@ def _create_output_raster(outfile, nxx, nyy, geotransform, var1):
 
     return output_raster
 
-def _set_metadata(varname, units, soil_layer, model, \
-                  yyyymmddhh):
-    """Create metadata dictionary for output to GeoTIFF file"""
+def _make_timestring(yyyymmddhh):
+    """Create time metadata"""
     validdt = datetime.datetime(year=int(yyyymmddhh[0:4]),
                                 month=int(yyyymmddhh[4:6]),
                                 day=int(yyyymmddhh[6:8]),
                                 hour=int(yyyymmddhh[8:10]))
-    metadata = { 'varname' : f'{varname}',
-                 'units' : f'{units}',
-                 'land_surface_model' : f'{model}' }
-    if soil_layer is not None:
-        metadata['soil_layer'] = f'{soil_layer}'
     time_string = f"Valid {validdt.hour:02d}Z"
     time_string += f" {validdt.day}"
     time_string += f" {_MONTHS[validdt.month-1]}"
     time_string += f" {validdt.year:04d}"
-    metadata["valid_date_time"] = time_string
-    return metadata
+    return time_string
+
+def _set_calc_type(varname):
+    """Return string summarizing how variable was calculated"""
+    if varname == "RHMin_inst":
+        calctype = "Value at time of minimum temperature"
+    elif varname[-5:] == "_tavg":
+        calctype = "3-hr time average"
+    elif varname[-5:] == "_inst":
+        calctype = "Instantaneous value"
+    elif varname[-4:] == "_acc":
+        calctype = "3-hr accumulation"
+    elif varname[-4:] == "_min":
+        calctype = "3-hr minimum"
+    elif varname[-4:] == "_max":
+        calctype = "3-hr maximum"
+    else:
+        print(f"[ERR] Unrecognized variable {varname}")
+        sys.exit(1)
+    return calctype
+
+def _set_landuse_key():
+    """Return string summarizing land use categories"""
+    summary = "IGBP-Modified MODIS Land Use Categories:"
+    summary += " 1=Evergreen Needleleaf Forest"
+    summary += " 2=Evergreen Broadleaf Forest"
+    summary += " 3=Deciduous Needleleaf Forest"
+    summary += " 4=Deciduous Broadleaf Forest"
+    summary += " 5=Mixed Forests"
+    summary += " 6=Closed Shrublands"
+    summary += " 7=Open Shrublands"
+    summary += " 8=Woody Savannas"
+    summary += " 9=Savannas"
+    summary += " 10=Grasslands"
+    summary += " 11=Permanent Wetlands"
+    summary += " 12=Croplands"
+    summary += " 13=Urban and Built-Up"
+    summary += " 14=Cropland/Natural Vegetation Mosaic"
+    summary += " 15=Snow and Ice"
+    summary += " 16=Barren or Sparsely Vegetated"
+    summary += " 17=Water"
+    summary += " 18=Wooded Tundra"
+    summary += " 19=Mixed Tundra"
+    summary += " 20=Barren Tundra"
+    return summary
+
+def _set_landmask_key():
+    """Return string summarizing land mask"""
+    summary = "Land-water mask:"
+    summary += " 0=Water"
+    summary += " 1=Land"
+    return summary
+
+def _set_soiltype_key():
+    """Return string summarizing soil categories"""
+    summary = "NCAR STATSGO+FAO blended soil texture categories:"
+    summary += " 1=Sand"
+    summary += " 2=Loamy Sand"
+    summary += " 3=Sandy Loam"
+    summary += " 4=Silt Loam"
+    summary += " 5=Silt"
+    summary += " 6=Loam"
+    summary += " 7=Sandy Clay Loam"
+    summary += " 8=Silty Clay Loam"
+    summary += " 9=Clay Loam"
+    summary += " 10=Sandy Clay"
+    summary += " 11=Silty Clay"
+    summary += " 12=Clay"
+    summary += " 13=Organic Material"
+    summary += " 14=Water"
+    summary += " 15=Bedrock"
+    summary += " 16=Other (land-ice)"
+    return summary
 
 def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     """Process all layers of specified variable."""
     for i in range(0, 4): # Loop across four LSM layers
-        long_name = ncid.variables[varname].getncattr('long_name')
-        units = ncid.variables[varname].getncattr('units')
-        soil_layer = _SOIL_LAYERS[i]
         nrows, ncols = ncid.variables[varname][i,:,:].shape
         geotransform = _make_geotransform(longitudes, latitudes, ncols, nrows)
-        filename = f"{varname}.{soil_layer}.{yyyymmddhh}.tif"
+        filename = f"{varname}.{_SOIL_LAYERS[i]}.{yyyymmddhh}.tif"
         output_raster = \
             _create_output_raster(filename, ncols, nrows,
                                   geotransform,
                                   ncid.variables[varname][i,:,:][::-1,:])
-        metadata = _set_metadata(varname=long_name, units=units,
-                                 soil_layer=soil_layer,
-                                 model="NoahMP 4.0.1",
-                                 yyyymmddhh=yyyymmddhh)
+        metadata = {}
+        metadata['valid_date_time'] = _make_timestring(yyyymmddhh)
+        metadata['varname'] = ncid.variables[varname].getncattr('long_name')
+        metadata['soil_layer'] = _SOIL_LAYERS[i]
+        metadata['units'] = ncid.variables[varname].getncattr('units')
+        metadata['model'] = "NoahMP 4.0.1"
+        metadata['processing_note'] = _set_calc_type(varname)
         output_raster.GetRasterBand(1).SetMetadata(metadata)
         output_raster.FlushCache() # Write to disk
         del output_raster
 
 def _proc_soilvar_2d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     """Process specified 2d variable."""
-    long_name = ncid.variables[varname].getncattr('long_name')
-    units = ncid.variables[varname].getncattr('units')
-    layervals = ncid.variables[varname][:,:]
-    nrows, ncols = layervals.shape
-    var1 = layervals[::-1, :]
+    nrows, ncols = ncid.variables[varname][:,:].shape
     geotransform = _make_geotransform(longitudes, latitudes, ncols, nrows)
     filename = f"{varname}.{yyyymmddhh}.tif"
     output_raster = _create_output_raster(filename, ncols, nrows,
-                                          geotransform, var1)
-    metadata = _set_metadata(varname=long_name, units=units,
-                             soil_layer=None,
-                             model="NoahMP 4.0.1",
-                             yyyymmddhh=yyyymmddhh)
+                                          geotransform,
+                                          ncid.variables[varname][:,:][::-1,:])
+    metadata = {}
+    metadata['valid_date_time'] = _make_timestring(yyyymmddhh)
+    metadata['varname'] = ncid.variables[varname].getncattr('long_name')
+    metadata['units'] = ncid.variables[varname].getncattr('units')
+    metadata['model'] = "NoahMP 4.0.1"
+    metadata['processing_note'] = _set_calc_type(varname)
+    if varname == "Landcover_inst":
+        metadata["key"] = _set_landuse_key()
+    elif varname == "Landmask_inst":
+        metadata["key"] = _set_landmask_key()
+    elif varname == "Soiltype_inst":
+        metadata["key"] = _set_soiltype_key()
     output_raster.GetRasterBand(1).SetMetadata(metadata)
     output_raster.FlushCache() # Write to disk
     del output_raster

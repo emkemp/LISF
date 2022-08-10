@@ -229,7 +229,7 @@ def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
         metadata['soil_layer'] = _SOIL_LAYERS[i]
         metadata['units'] = ncid.variables[varname].getncattr('units')
         metadata['model'] = "NoahMP 4.0.1"
-        metadata['processing_note'] = _set_calc_type(varname)
+        metadata['processing_note'] = "Ensemble mean, " + _set_calc_type(varname)
         output_raster.GetRasterBand(1).SetMetadata(metadata)
         output_raster.FlushCache() # Write to disk
         del output_raster
@@ -247,7 +247,7 @@ def _proc_soilvar_2d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     metadata['varname'] = ncid.variables[varname].getncattr('long_name')
     metadata['units'] = ncid.variables[varname].getncattr('units')
     metadata['model'] = "NoahMP 4.0.1"
-    metadata['processing_note'] = _set_calc_type(varname)
+    metadata['processing_note'] = "Ensemble mean, " + _set_calc_type(varname)
     if varname == "Landcover_inst":
         metadata["key"] = _set_landuse_key()
     elif varname == "Landmask_inst":

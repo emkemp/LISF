@@ -140,13 +140,12 @@ def _set_metadata(varname, units, soil_layer, model, \
     metadata = { 'varname' : f'{varname}',
                  'units' : f'{units}',
                  'land_surface_model' : f'{model}' }
-    if soil_layer != None:
+    if soil_layer is not None:
         metadata['soil_layer'] = f'{soil_layer}'
-    time_string = "Valid %2.2dZ %d %s %4.4d" \
-        %(validdt.hour,
-          validdt.day,
-          _MONTHS[validdt.month-1],
-          validdt.year)
+    time_string = f"Valid {validdt.hour:02d}Z"
+    time_string += f" {validdt.day}"
+    time_string += f" {_MONTHS[validdt.month-1]}"
+    time_string += f" {validdt.year:04d}"
     metadata["valid_date_time"] = time_string
     return metadata
 
@@ -155,14 +154,14 @@ def _proc_soilvar_3d(ncid, varname, longitudes, latitudes, yyyymmddhh):
     for i in range(0, 4): # Loop across four LSM layers
         long_name = ncid.variables[varname].getncattr('long_name')
         units = ncid.variables[varname].getncattr('units')
-        layervals = ncid.variables[varname][i,:,:]
-        nrows, ncols = layervals.shape
         soil_layer = _SOIL_LAYERS[i]
-        var1 = layervals[::-1, :]
+        nrows, ncols = ncid.variables[varname][i,:,:].shape
         geotransform = _make_geotransform(longitudes, latitudes, ncols, nrows)
         filename = f"{varname}.{soil_layer}.{yyyymmddhh}.tif"
-        output_raster = _create_output_raster(filename, ncols, nrows,
-                                              geotransform, var1)
+        output_raster = \
+            _create_output_raster(filename, ncols, nrows,
+                                  geotransform,
+                                  ncid.variables[varname][i,:,:][::-1,:])
         metadata = _set_metadata(varname=long_name, units=units,
                                  soil_layer=soil_layer,
                                  model="NoahMP 4.0.1",

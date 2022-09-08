@@ -157,21 +157,45 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     dst = nc4_dataset(merge_file, "w", format="NETCDF4")
 
     # Define all dimensions, variables, and attributes from src1
+    dimension_dict = {
+        "east_west" : "lon",
+        "north_south" : "lat",
+    }
     for dimname in src1.dimensions:
-        dst.createDimension(dimname, src1.dimensions[dimname].size)
+        dimname1 = dimname
+        if dimname in dimension_dict:
+            dimname1 = dimension_dict[dimname]
+        dst.createDimension(dimname1, src1.dimensions[dimname].size)
     for gattrname in src1.__dict__:
         dst.setncattr(gattrname, src1.__dict__[gattrname])
     for name, variable in src1.variables.items():
-        dst.createVariable(name, variable.datatype,
-                           variable.dimensions)
+
+        # Special handling for lat
+        if name == "lat":
+            dst.createVariable(name, variable.datatype, ("lat"))
+        elif name == "lon":
+            dst.createVariable(name, variable.datatype, ("lon"))
+        else:
+            # Need to account for new CF dimension names
+            dimensions = []
+            for dimension in variable.dimensions:
+                if dimension in dimension_dict:
+                    dimensions.append(dimension_dict[dimension])
+                else:
+                    dimensions.append(dimension)
+            dst.createVariable(name, variable.datatype,
+                               dimensions)
+        # Extra CF attributes
+        attrs = copy.deepcopy(src1[name].__dict__)
         if name == "time":
-           attrs = copy.deepcopy(src1[name].__dict__)
            attrs["calendar"] = "standard"
            attrs["axis"] = "T"
            attrs["bounds"] = "time_bnds"
-           dst[name].setncatts(attrs)
-        else:
-           dst[name].setncatts(src1[name].__dict__)
+        elif name == "lat":
+            attrs["axis"] = "Y"
+        elif name == "lon":
+            attrs["axis"] = "X"
+        dst[name].setncatts(attrs)
 
     # Add select variables and attributes from src2
     src2_excludes = ["lat", "lon", "time", "ensemble", "RunoffStor_tavg",
@@ -179,13 +203,25 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     for name, variable in src2.variables.items():
         if name in src2_excludes:
             continue
+        dimensions = []
+        for dimension in variable.dimensions:
+            if dimension in dimension_dict:
+                dimensions.append(dimension_dict[dimension])
+            else:
+                dimensions.append(dimension)
         dst.createVariable(name, variable.datatype,
-                           variable.dimensions)
+                           dimensions)
         dst[name].setncatts(src2[name].__dict__)
 
     # Add LANDMASK variable and attributes from src3
+    dimensions = []
+    for dimension in src3["LANDMASK"].dimensions:
+        if dimension in dimension_dict:
+            dimensions.append(dimension_dict[dimension])
+        else:
+            dimensions.append(dimension)
     dst.createVariable("LANDMASK", src3["LANDMASK"].datatype,
-                       src3["LANDMASK"].dimensions)
+                       dimensions)
     dst["LANDMASK"].setncatts(src3["LANDMASK"].__dict__)
 
     # Add time_bnds variable
@@ -209,13 +245,15 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     }
     dst["soil_layer_thickness"].setncatts(attrs)
 
-    ## Rename dimensions before writing data
-    #dst.renameDimension("east_west", "lon")
-    #dst.renameDimension("north_south", "lat")
-    
     # Write data from src1
     for name, variable in src1.variables.items():
-        if len(variable.dimensions) == 4:
+        # Special handling for lat and lon, which should be 1d arrays
+        # for lat/lon projection in CF convention
+        if name == "lat":
+            dst[name][:] = src1[name][:,0]
+        elif name == "lon":
+            dst[name][:] = src1[name][0,:]
+        elif len(variable.dimensions) == 4:
             dst[name][:,:,:,:] = src1[name][:,:,:,:]
         elif len(variable.dimensions) == 3:
             dst[name][:,:,:] = src1[name][:,:,:]
@@ -253,7 +291,7 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     dst["soil_layer_thickness"][1] = 0.3
     dst["soil_layer_thickness"][2] = 0.6
     dst["soil_layer_thickness"][3] = 1.0
-    
+
     src1.close()
     src2.close()
     src3.close()

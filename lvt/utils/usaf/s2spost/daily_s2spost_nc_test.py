@@ -96,6 +96,22 @@ _cell_methods = {
     "Wind_f_tavg" : "time: mean",
 }
 
+_new_standard_names = {
+    "AvgSurfT_inst" : "surface_temperature",
+    "AvgSurfT_tavg" : "surface_temperature",
+    "CanopInt_inst" : "canopy_water_amount",
+    "Elevation_inst" : "height_above_mean_sea_level",
+    "Evap_tavg" : "water_evapotranspiration_flux",
+    "LANDMASK" : "land_binary_mask",
+    "Psurf_f_inst" : "surface_air_pressure",
+    "Psurf_f_tavg" : "surface_air_pressure",
+    "Qg_tavg" : "downward_heat_flux_at_ground_level_in_soil",
+    "SnowDepth_inst" : "surface_snow_thickness",
+    "Soiltype_inst" : "soil_type",
+    "Streamflow_tavg" : "water_volume_transport_in_river_channel",
+    "TotalPrecip_acc" : "precipitation_amount",
+}
+
 # Private methods.
 def _usage():
     """Print command line usage."""
@@ -243,6 +259,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["axis"] = "X"
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
+        if name in _new_standard_names:
+            attrs["standard_name"] = _new_standard_names[name]
         dst[name].setncatts(attrs)
 
     # Add select variables and attributes from src2
@@ -263,6 +281,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
         attrs = copy.deepcopy(src2[name].__dict__)
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
+        if name in _new_standard_names:
+            attrs["standard_name"] = _new_standard_names[name]
         dst[name].setncatts(attrs)
 
     # Add LANDMASK variable and attributes from src3

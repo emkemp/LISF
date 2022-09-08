@@ -112,6 +112,16 @@ _new_standard_names = {
     "TotalPrecip_acc" : "precipitation_amount",
 }
 
+_remove_standard_names_list = ["BaseflowStor_tavg", "RelSMC_inst",
+                               "FloodedArea_tavg", "FloodedFrac_tavg",
+                               "FloodStor_tavg", "Greenness_inst",
+                               "GWS_inst", "Landcover_inst",
+                               "Landmask_inst", "RelSMC_inst",
+                               "RHMin_inst", "RiverDepth_tavg",
+                               "RiverFlowVelocity_tavg", "RiverStor_tavg",
+                               "SmLiqFrac_inst", "SoilMoist_inst",
+                               "SoilMoist_tavg", "SurfElev_tavg",
+                               "SWS_tavg", "TWS_inst"]
 # Private methods.
 def _usage():
     """Print command line usage."""
@@ -261,6 +271,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:
             attrs["standard_name"] = _new_standard_names[name]
+        if name in _remove_standard_names_list:
+            del attrs["standard_name"]
         dst[name].setncatts(attrs)
 
     # Add select variables and attributes from src2

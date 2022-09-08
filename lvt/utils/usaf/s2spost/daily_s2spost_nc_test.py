@@ -50,6 +50,52 @@ import time
 from netCDF4 import Dataset as nc4_dataset
 # pylint: enable=no-name-in-module
 
+_cell_methods = {
+    "Albedo_tavg" : "time: mean area: point where land",
+    "AvgSurfT_inst" : "area: point where land",
+    "AvgSurfT_tavg" : "time: mean area: point where land",
+    "BaseflowStor_tavg" : "time: mean area: point where land",
+    "CanopInt_inst" : "area: point where land",
+    "Elevation_inst" : "area: point where land",
+    "Evap_tavg" : "time: mean area: point where land",
+    "FloodedArea_tavg" : "time: mean area: point where land",
+    "FloodedFrac_tavg" : "time: mean area: point where land",
+    "FloodStor_tavg" : "time: mean area: point where land",
+    "GWS_inst" : "area: point where land",
+    "Greenness_inst" : "area: point where land",
+    "LWdown_f_tavg" : "time: mean",
+    "Psurf_f_tavg" : "time: mean",
+    "Qair_f_tavg" : "time: mean",
+    "Qg_tavg" : "time: mean area: point where land",
+    "Qh_tavg" : "time: mean area: point where land",
+    "Qle_tavg" : "time: mean area: point where land",
+    "Qs_acc" : "time: sum area: point where land",
+    "Qsb_acc" : "time: sum area: point where land",
+    "RelSMC_inst" : "area: point where land",
+    "RHMin_inst" : "area: point where land",
+    "RiverDepth_tavg" : "time: mean area: point where land",
+    "RiverFlowVelocity_tavg" : "time: mean area: point where land",
+    "RiverStor_tavg" : "time: mean area: point where land",
+    "SmLiqFrac_inst" : "area: point where land",
+    "Snowcover_inst" : "area: point where land",
+    "SnowDepth_inst" : "area: point where land",
+    "SoilMoist_inst" : "area: point where land",
+    "SoilMoist_tavg" : "time: mean area: point where land",
+    "SoilTemp_inst" : "area: point where land",
+    "SoilTemp_tavg" : "time: mean area: point where land",
+    "Streamflow_tavg" : "time: mean area: point where land",
+    "SurfElev_tavg" : "time: mean area: point where land",
+    "SWdown_f_tavg" : "time: mean",
+    "SWE_inst" : "area: point where land",
+    "SWS_tavg" : "time: mean area: point where land",
+    "Tair_f_max" : "time: maximum",
+    "Tair_f_min" : "time: minimum",
+    "Tair_f_tavg" : "time: mean",
+    "TotalPrecip_acc" : "time: sum",
+    "TWS_inst" : "area: point where land",
+    "Wind_f_tavg" : "time: mean",
+}
+
 # Private methods.
 def _usage():
     """Print command line usage."""
@@ -195,6 +241,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["axis"] = "Y"
         elif name == "lon":
             attrs["axis"] = "X"
+        if name in _cell_methods:
+            attrs["cell_methods"] = _cell_methods[name]
         dst[name].setncatts(attrs)
 
     # Add select variables and attributes from src2
@@ -211,7 +259,11 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 dimensions.append(dimension)
         dst.createVariable(name, variable.datatype,
                            dimensions)
-        dst[name].setncatts(src2[name].__dict__)
+        # Extra CF attributes
+        attrs = copy.deepcopy(src2[name].__dict__)
+        if name in _cell_methods:
+            attrs["cell_methods"] = _cell_methods[name]
+        dst[name].setncatts(attrs)
 
     # Add LANDMASK variable and attributes from src3
     dimensions = []

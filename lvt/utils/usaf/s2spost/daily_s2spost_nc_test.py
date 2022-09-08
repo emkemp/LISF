@@ -120,7 +120,8 @@ _remove_standard_names_list = ["BaseflowStor_tavg", "RelSMC_inst",
                                "RHMin_inst", "RiverDepth_tavg",
                                "RiverFlowVelocity_tavg", "RiverStor_tavg",
                                "SmLiqFrac_inst", "SoilMoist_inst",
-                               "SoilMoist_tavg", "SurfElev_tavg",
+                               "SoilMoist_tavg", "Soiltype_inst",
+                               "SurfElev_tavg",
                                "SWS_tavg", "TWS_inst"]
 
 _new_units = {
@@ -293,7 +294,20 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " silty_clay clay organic_material water bedrock" + \
                 " other+land-ice"
             attrs["valid_range"] = "1, 16"
-            del attrs["units"]
+        elif name == "Landcover_inst":
+            attrs["flag_values"] = \
+                "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, " + \
+                "12, 13, 14, 15, 16, 17, 18, 19, 20, 21"
+            attrs["flag_meanings"] = \
+                "evergreen_needleleaf_forest evergreen_broadleaf_forest" + \
+                " deciduous_needleleaf_forest deciduous_broadleaf_forest" + \
+                " mixed_forests closed_shrublands open_shrublands" + \
+                " woody_savannas savannas grasslands permanent_wetlands" + \
+                " croplands urban_and_built-up" + \
+                " cropland+natural_vegetation_mosaic snow_and_ice" + \
+                " barren_or_sparsely_vegetated water wooded_tundra" + \
+                " mixed_tundra barren_tundra water"
+            attrs["valid_range"] = "1, 21"
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:

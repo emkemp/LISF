@@ -284,6 +284,16 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["axis"] = "X"
         elif name in ["SoilMoist_inst", "SoilMoist_tavg"]:
             attrs["long_name"] = "volumetric soil moisture content"
+        elif name == "Soiltype_inst":
+            attrs["flag_values"] = \
+                "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
+            attrs["flag_meanings"] = \
+                "sand loamy_sand sandy_loam silt_loam silt loam" + \
+                " sandy_clay_loam silty_clay_loam clay_loam sandy_clay" + \
+                " silty_clay clay organic_material water bedrock" + \
+                " other+land-ice"
+            attrs["valid_range"] = "1, 16"
+            del attrs["units"]
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:

@@ -254,8 +254,16 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
         if dimname in dimension_dict:
             dimname1 = dimension_dict[dimname]
         dst.createDimension(dimname1, src1.dimensions[dimname].size)
-    for gattrname in src1.__dict__:
-        dst.setncattr(gattrname, src1.__dict__[gattrname])
+    attrs = copy.deepcopy(src1.__dict__)
+    attrs["Conventions"] = "CF-1.8"
+    del attrs["conventions"]
+    del attrs["missing_value"]
+    del attrs["SOIL_LAYER_THICKNESSES"]
+    attrs["source"] = "Noah-MP.4.0.1+template open water+HYMAP2"
+    #for gattrname in src1.__dict__:
+    #    dst.setncattr(gattrname, src1.__dict__[gattrname])
+    dst.setncatts(attrs)
+
     for name, variable in src1.variables.items():
 
         # Special handling for lat

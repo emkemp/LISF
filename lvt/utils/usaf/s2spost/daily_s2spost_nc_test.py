@@ -122,6 +122,21 @@ _remove_standard_names_list = ["BaseflowStor_tavg", "RelSMC_inst",
                                "SmLiqFrac_inst", "SoilMoist_inst",
                                "SoilMoist_tavg", "SurfElev_tavg",
                                "SWS_tavg", "TWS_inst"]
+
+_new_units = {
+    "ensemble" : "1",
+    "FloodedFrac_tavg" : "1",
+    "Greenness_inst" : "1",
+    "LANDMASK" : "1",
+    "Landmask_inst" : "1",
+    "RelSMC_inst" : "1",
+    "Qair_f_inst" : "1",
+    "Qair_f_tavg" : "1",
+    "SmLiqFrac_inst" : "1",
+    "SoilMoist_inst" : "1",
+    "SoilMoist_tavg" : "1",
+}
+
 # Private methods.
 def _usage():
     """Print command line usage."""
@@ -273,6 +288,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["standard_name"] = _new_standard_names[name]
         if name in _remove_standard_names_list:
             del attrs["standard_name"]
+        if name in _new_units:
+            attrs["units"] = _new_units[name]
         dst[name].setncatts(attrs)
 
     # Add select variables and attributes from src2
@@ -295,6 +312,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:
             attrs["standard_name"] = _new_standard_names[name]
+        if name in _new_units:
+            attrs["units"] = _new_units[name]
         dst[name].setncatts(attrs)
 
     # Add LANDMASK variable and attributes from src3

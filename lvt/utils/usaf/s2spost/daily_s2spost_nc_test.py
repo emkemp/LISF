@@ -36,6 +36,7 @@
 
 # Standard modules
 import configparser
+import copy
 import datetime
 import os
 import sys
@@ -163,7 +164,14 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     for name, variable in src1.variables.items():
         dst.createVariable(name, variable.datatype,
                            variable.dimensions)
-        dst[name].setncatts(src1[name].__dict__)
+        if name == "time":
+           attrs = copy.deepcopy(src1[name].__dict__)
+           attrs["calendar"] = "standard"
+           attrs["axis"] = "T"
+           attrs["bounds"] = "time_bnds"
+           dst[name].setncatts(attrs)
+        else:
+           dst[name].setncatts(src1[name].__dict__)
 
     # Add select variables and attributes from src2
     src2_excludes = ["lat", "lon", "time", "ensemble", "RunoffStor_tavg",
@@ -180,6 +188,31 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                        src3["LANDMASK"].dimensions)
     dst["LANDMASK"].setncatts(src3["LANDMASK"].__dict__)
 
+    # Add time_bnds variable
+    dst.createDimension("nv", 2)
+    dst.createVariable("time_bnds", "f4", ("time", "nv"))
+
+    # Add soil_layer and soil_layer_thickness variables
+    dst.createDimension("soil_layer",
+                        src1.dimensions["SoilMoist_profiles"].size)
+    dst.createVariable("soil_layer", "i4", ("soil_layer"))
+    attrs = {
+        "long_name" : "soil layer level",
+        "axis" : "Z",
+        "positive" : "down",
+    }
+    dst["soil_layer"].setncatts(attrs)
+    dst.createVariable("soil_layer_thickness", "f4", ("soil_layer"))
+    attrs = {
+        "long_name" : "soil layer thicknesses",
+        "units" : "m",
+    }
+    dst["soil_layer_thickness"].setncatts(attrs)
+
+    ## Rename dimensions before writing data
+    #dst.renameDimension("east_west", "lon")
+    #dst.renameDimension("north_south", "lat")
+    
     # Write data from src1
     for name, variable in src1.variables.items():
         if len(variable.dimensions) == 4:
@@ -207,6 +240,20 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     # Write data from src3
     dst["LANDMASK"][:,:] = src3["LANDMASK"][:,:]
 
+    # Write time_bnds
+    dst["time_bnds"][0,0] = -1440.
+    dst["time_bnds"][0,1] = 0.
+
+    # Write soil layer data
+    dst["soil_layer"][0] = 1
+    dst["soil_layer"][1] = 2
+    dst["soil_layer"][2] = 3
+    dst["soil_layer"][3] = 4
+    dst["soil_layer_thickness"][0] = 0.1
+    dst["soil_layer_thickness"][1] = 0.3
+    dst["soil_layer_thickness"][2] = 0.6
+    dst["soil_layer_thickness"][3] = 1.0
+    
     src1.close()
     src2.close()
     src3.close()

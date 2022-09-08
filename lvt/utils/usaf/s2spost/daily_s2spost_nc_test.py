@@ -327,7 +327,10 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             dimensions.append(dimension)
     dst.createVariable("LANDMASK", src3["LANDMASK"].datatype,
                        dimensions)
-    dst["LANDMASK"].setncatts(src3["LANDMASK"].__dict__)
+    attrs = copy.deepcopy(src3["LANDMASK"].__dict__)
+    attrs["flag_values"] = "0, 1"
+    attrs["flag_meanings"] = "water land"
+    dst["LANDMASK"].setncatts(attrs)
 
     # Add time_bnds variable
     dst.createDimension("nv", 2)

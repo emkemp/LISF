@@ -271,11 +271,16 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
 
     for name, variable in src1.variables.items():
 
-        # Special handling for lat
+        # Special handling for certain variables to match CF convention
         if name == "lat":
             dst.createVariable(name, variable.datatype, ("lat"))
         elif name == "lon":
             dst.createVariable(name, variable.datatype, ("lon"))
+        elif name in ["SoilMoist_tavg", "SoilMoist_inst",
+                      "SoilTemp_tavg", "SoilTemp_inst",
+                      "SmLiqFrac_inst", "RelSMC_inst"]:
+            dst.createVariable(name, variable.datatype, \
+                               ("ensemble", "soil_layer", "lat", "lon"))
         else:
             # Need to account for new CF dimension names
             dimensions = []
@@ -396,6 +401,14 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             dst[name][:] = src1[name][:,0]
         elif name == "lon":
             dst[name][:] = src1[name][0,:]
+        # Special handling for soil variables. CF convention requires
+        # switching the soil_layer and ensemble dimension.
+        elif name in ["SoilMoist_tavg", "SoilMoist_inst",
+                      "SoilTemp_tavg", "SoilTemp_inst",
+                      "SmLiqFrac_inst", "RelSMC_inst"]:
+            ns = dst.dimensions["soil_layer"].size
+            for i in range(0, ns):
+                dst[name][:,i,:,:] = src1[name][i,:,:,:]
         elif len(variable.dimensions) == 4:
             dst[name][:,:,:,:] = src1[name][:,:,:,:]
         elif len(variable.dimensions) == 3:

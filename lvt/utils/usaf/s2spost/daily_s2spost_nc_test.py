@@ -48,6 +48,7 @@ import time
 # known false alarm.
 # pylint: disable=no-name-in-module
 from netCDF4 import Dataset as nc4_dataset
+import numpy as np
 # pylint: enable=no-name-in-module
 
 _cell_methods = {
@@ -118,7 +119,8 @@ _remove_standard_names_list = ["BaseflowStor_tavg", "RelSMC_inst",
                                "GWS_inst", "Landcover_inst",
                                "Landmask_inst", "RelSMC_inst",
                                "RHMin_inst", "RiverDepth_tavg",
-                               "RiverFlowVelocity_tavg", "RiverStor_tavg",
+                               "RiverFlowVelocity_tavg", "RiverDepth_tavg",
+                               "RiverStor_tavg",
                                "SmLiqFrac_inst", "SoilMoist_inst",
                                "SoilMoist_tavg", "Soiltype_inst",
                                "SurfElev_tavg",
@@ -128,6 +130,7 @@ _new_units = {
     "ensemble" : "1",
     "FloodedFrac_tavg" : "1",
     "Greenness_inst" : "1",
+    "Landcover_inst" : "1",
     "LANDMASK" : "1",
     "Landmask_inst" : "1",
     "RelSMC_inst" : "1",
@@ -136,6 +139,7 @@ _new_units = {
     "SmLiqFrac_inst" : "1",
     "SoilMoist_inst" : "1",
     "SoilMoist_tavg" : "1",
+    "Soiltype_inst" : "1",
 }
 
 # Private methods.
@@ -289,8 +293,11 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                     dimensions.append(dimension_dict[dimension])
                 else:
                     dimensions.append(dimension)
-            dst.createVariable(name, variable.datatype,
-                               dimensions)
+            var = dst.createVariable(name, variable.datatype,
+                                     dimensions)
+            if name == "Landcover_inst":
+                var.flag_values = [float(i) for i in range(1,22)]
+
         # Extra CF attributes
         attrs = copy.deepcopy(src1[name].__dict__)
         if name == "time":
@@ -311,11 +318,13 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " sandy_clay_loam silty_clay_loam clay_loam sandy_clay" + \
                 " silty_clay clay organic_material water bedrock" + \
                 " other+land-ice"
-            attrs["valid_range"] = "1, 16"
+            attrs["valid_range"] = [1., 16.]
         elif name == "Landcover_inst":
-            attrs["flag_values"] = \
-                "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, " + \
-                "12, 13, 14, 15, 16, 17, 18, 19, 20, 21"
+            #attrs["flag_values"] = [float(i) for i in range(1, 22)]
+            #attrs["flag_values"] = np.array((0,1))
+            #attrs["flag_values"] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+            #attrs.flag_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, \14, 15, 16, 17, 18, 19, 20, 21]
+
             attrs["flag_meanings"] = \
                 "evergreen_needleleaf_forest evergreen_broadleaf_forest" + \
                 " deciduous_needleleaf_forest deciduous_broadleaf_forest" + \
@@ -325,7 +334,7 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " cropland+natural_vegetation_mosaic snow_and_ice" + \
                 " barren_or_sparsely_vegetated water wooded_tundra" + \
                 " mixed_tundra barren_tundra water"
-            attrs["valid_range"] = "1, 21"
+            attrs["valid_range"] = [1., 21.]
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:
@@ -356,6 +365,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:
             attrs["standard_name"] = _new_standard_names[name]
+        if name in _remove_standard_names_list:
+            del attrs["standard_name"]
         if name in _new_units:
             attrs["units"] = _new_units[name]
         dst[name].setncatts(attrs)
@@ -372,6 +383,8 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     attrs = copy.deepcopy(src3["LANDMASK"].__dict__)
     attrs["flag_values"] = "0, 1"
     attrs["flag_meanings"] = "water land"
+    del attrs["standard_name"]
+    attrs["long_name"] = "land mask from LDT"
     dst["LANDMASK"].setncatts(attrs)
 
     # Add time_bnds variable

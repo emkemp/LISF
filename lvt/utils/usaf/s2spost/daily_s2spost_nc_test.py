@@ -22,6 +22,7 @@
 # REQUIREMENTS as of 08 Sep 2022:
 # * Python 3.9 or higher.
 # * UNIDATA NetCDF4 Python library
+# * Numpy Python library
 #
 # REFERENCES:
 # https://cfconventions.org for specifications of NetCDF Climate and Forecast
@@ -30,7 +31,7 @@
 #   library, which CF is generally consistent with for unit specifications.
 #
 # REVISION HISTORY:
-# 08 Sep 2022: Eric Kemp/SSAI, first version.
+# 09 Sep 2022: Eric Kemp/SSAI, first version.
 #------------------------------------------------------------------------------
 """
 

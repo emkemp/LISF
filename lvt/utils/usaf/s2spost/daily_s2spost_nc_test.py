@@ -296,8 +296,9 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
             var = dst.createVariable(name, variable.datatype,
                                      dimensions)
             if name == "Landcover_inst":
-                var.flag_values = [float(i) for i in range(1,22)]
-
+                var.flag_values = [np.float32(i) for i in range(1,22)]
+            elif name == "Soiltype_inst":
+                var.flag_values = [np.float32(i) for i in range(1,17)]
         # Extra CF attributes
         attrs = copy.deepcopy(src1[name].__dict__)
         if name == "time":
@@ -311,8 +312,6 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
         elif name in ["SoilMoist_inst", "SoilMoist_tavg"]:
             attrs["long_name"] = "volumetric soil moisture content"
         elif name == "Soiltype_inst":
-            attrs["flag_values"] = \
-                "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
             attrs["flag_meanings"] = \
                 "sand loamy_sand sandy_loam silt_loam silt loam" + \
                 " sandy_clay_loam silty_clay_loam clay_loam sandy_clay" + \
@@ -320,11 +319,6 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " other+land-ice"
             attrs["valid_range"] = [1., 16.]
         elif name == "Landcover_inst":
-            #attrs["flag_values"] = [float(i) for i in range(1, 22)]
-            #attrs["flag_values"] = np.array((0,1))
-            #attrs["flag_values"] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-            #attrs.flag_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, \14, 15, 16, 17, 18, 19, 20, 21]
-
             attrs["flag_meanings"] = \
                 "evergreen_needleleaf_forest evergreen_broadleaf_forest" + \
                 " deciduous_needleleaf_forest deciduous_broadleaf_forest" + \
@@ -381,7 +375,7 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     dst.createVariable("LANDMASK", src3["LANDMASK"].datatype,
                        dimensions)
     attrs = copy.deepcopy(src3["LANDMASK"].__dict__)
-    attrs["flag_values"] = "0, 1"
+    attrs["flag_values"] = [np.float32(i) for i in range(0,2)]
     attrs["flag_meanings"] = "water land"
     del attrs["standard_name"]
     attrs["long_name"] = "land mask from LDT"

@@ -235,10 +235,6 @@ def _create_final_filename(output_dir, curdt, model_forcing):
 def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     """Copy LDT, NoahMP and HYMAP2 fields into same file."""
 
-    #rootgrp_hymap2 = nc4_dataset(hymap2_file, "r")
-    #rootgrb_ldt = nc4_dataset(ldtfile, "r")
-
-    # Copy data from NoahMP to Merged file
     src1 = nc4_dataset(noahmp_file, "r")
     src2 = nc4_dataset(hymap2_file, "r")
     src3 = nc4_dataset(ldtfile, "r")
@@ -248,8 +244,17 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     dimension_dict = {
         "east_west" : "lon",
         "north_south" : "lat",
+        "SoilMoist_profiles" : "soil_layer",
+        "SoilTemp_profiles" : "soil_layer",
+        "SmLiqFrac_profiles" : "soil_layer",
+        "RelSMC_profiles" : "soil_layer",
     }
     for dimname in src1.dimensions:
+        # Soil dimensions will be replaced by soil_layer, so just
+        # write it once.
+        if dimname in ["SoilTemp_profiles", "SmLiqFrac_profiles", \
+                       "RelSMC_profiles"]:
+            continue
         dimname1 = dimname
         if dimname in dimension_dict:
             dimname1 = dimension_dict[dimname]
@@ -369,8 +374,6 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
     dst.createVariable("time_bnds", "f4", ("time", "nv"))
 
     # Add soil_layer and soil_layer_thickness variables
-    dst.createDimension("soil_layer",
-                        src1.dimensions["SoilMoist_profiles"].size)
     dst.createVariable("soil_layer", "i4", ("soil_layer"))
     attrs = {
         "long_name" : "soil layer level",

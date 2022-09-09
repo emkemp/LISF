@@ -130,7 +130,6 @@ _new_units = {
     "ensemble" : "1",
     "FloodedFrac_tavg" : "1",
     "Greenness_inst" : "1",
-    "Landcover_inst" : "1",
     "LANDMASK" : "1",
     "Landmask_inst" : "1",
     "RelSMC_inst" : "1",
@@ -139,7 +138,6 @@ _new_units = {
     "SmLiqFrac_inst" : "1",
     "SoilMoist_inst" : "1",
     "SoilMoist_tavg" : "1",
-    "Soiltype_inst" : "1",
 }
 
 # Private methods.
@@ -318,6 +316,7 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " silty_clay clay organic_material water bedrock" + \
                 " other+land-ice"
             attrs["valid_range"] = [1., 16.]
+            del attrs["units"]
         elif name == "Landcover_inst":
             attrs["flag_meanings"] = \
                 "evergreen_needleleaf_forest evergreen_broadleaf_forest" + \
@@ -329,6 +328,7 @@ def _merge_files(ldtfile, noahmp_file, hymap2_file, merge_file):
                 " barren_or_sparsely_vegetated water wooded_tundra" + \
                 " mixed_tundra barren_tundra water"
             attrs["valid_range"] = [1., 21.]
+            del attrs["units"]
         if name in _cell_methods:
             attrs["cell_methods"] = _cell_methods[name]
         if name in _new_standard_names:

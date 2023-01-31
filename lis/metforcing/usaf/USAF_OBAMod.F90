@@ -38,6 +38,7 @@ module USAF_OBAMod
       real, allocatable :: O(:) ! Observation values
       real, allocatable :: B(:) ! Background values
       real, allocatable :: A(:) ! Analysis values
+      integer, allocatable :: qc(:) ! QC code
    end type OBA
    public :: OBA
 
@@ -53,6 +54,21 @@ module USAF_OBAMod
    public :: assignOBA
    public :: writeToFile
    public :: makeFilename
+
+   ! Public parameters
+   real, parameter, public :: QC_UNKNOWN = 0
+   real, parameter, public :: QC_GOOD = 1
+   real, parameter, public :: QC_SUSPECT = 2
+   real, parameter, public :: QC_REJECT = 3
+   real, parameter, public :: QC_MONITOR = 4 ! EMK 17 Jan 2023
+
+   ! Private parameter
+   character(10), parameter :: qc_string(5) = &
+        (/'QC_UNKNOWN', &
+          'QC_GOOD   ', &
+          'QC_SUSPECT', &
+          'QC_REJECT ', &
+          'QC_MONITOR'/)
 
 contains
 
@@ -91,6 +107,7 @@ contains
       allocate(this%O(maxnobs))
       allocate(this%B(maxnobs))
       allocate(this%A(maxnobs))
+      allocate(this%qc(maxnobs))
 
       this%networks(:) = "NULL"
       this%platforms(:) = "NULL"
@@ -99,6 +116,7 @@ contains
       this%O(:) = 0
       this%B(:) = 0
       this%A(:) = 0
+      this%qc(:) = 0
 
    end function newOBA
 
@@ -118,14 +136,15 @@ contains
       deallocate(this%latitudes)
       deallocate(this%longitudes)
       deallocate(this%O)
-      deallocate(this%B) 
+      deallocate(this%B)
       deallocate(this%A)
+      deallocate(this%qc)
 
    end subroutine destroyOBA
 
    !---------------------------------------------------------------------------
    ! Add new diagnostics from one observation to the data structure.
-   subroutine assignOBA(this,network,platform,latitude,longitude,O,B,A)
+   subroutine assignOBA(this,network,platform,latitude,longitude,O,B,A,qc)
 
       ! Imports
       use LIS_logmod, only : LIS_logunit
@@ -142,10 +161,11 @@ contains
       real, intent(in) :: O
       real, intent(in) :: B
       real, intent(in) :: A
+      integer, intent(in) :: qc
 
       ! Local variables
       integer :: nobs
-      
+
       ! Sanity check.  Since this is intended for an operational system,
       ! just print a warning and return if we see an array bounds problem.
       nobs = this%nobs
@@ -165,6 +185,7 @@ contains
       this%O(nobs) = O
       this%B(nobs) = B
       this%A(nobs) = A
+      this%qc(nobs) = qc
 
    end subroutine assignOBA
 
@@ -200,12 +221,15 @@ contains
 
       ! Write OBA information to file
       write(iunit, *, iostat=istat) &
-           '# Network Platform latitude longitude O   B   A'
+           '# Network Platform latitude longitude O   B   A   QC'
       do j = 1, this%nobs
+         if (this%qc(j) == QC_REJECT) cycle
+         if (trim(this%networks(j)) == "SUPEROB") cycle
+         if (trim(this%networks(j)) == "SUPERGAGE") cycle
          write(iunit, 1000, iostat=istat) trim(this%networks(j)), &
               trim(this%platforms(j)), this%latitudes(j), this%longitudes(j),&
-              this%O(j), this%B(j), this%A(j)
-         1000 format(a10,1x,a10,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3)
+              this%O(j), this%B(j), this%A(j), qc_string(this%qc(j)+1)
+         1000 format(a10,1x,a10,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,a10)
       end do ! j
 
       ! Close file

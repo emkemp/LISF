@@ -245,8 +245,8 @@ contains
    end subroutine InitObsData
 
    !---------------------------------------------------------------------------
-   ! Loops through contents of ObsData structure and counts all obs with
-   ! "good" quality control flag.
+   ! Loops through contents of ObsData structure and counts all obs not
+   ! flagged for rejection.
    function USAF_countGoodObs(this) result(goodObs)
       use USAF_OBAMod, only: QC_REJECT
       implicit none
@@ -1787,7 +1787,8 @@ contains
       use LIS_coreMod, only: LIS_localPet, LIS_rc
       use LIS_logMod, only : LIS_logunit, LIS_endrun, LIS_endrun
       use LIS_mpiMod
-      use USAF_OBAmod, only: QC_REJECT, QC_MONITOR
+      use USAF_OBAmod, only: QC_REJECT, QC_SUSPECT_BACKQC, &
+           QC_SUSPECT_SUPERSTATQC
 
       ! Defaults
       implicit none
@@ -1879,13 +1880,15 @@ contains
             do j = 1, nobs_cr
                job = jobs_cr_vector(j)
                if (this%qc(job) .eq. QC_REJECT) cycle
-               if (this%qc(job) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+               if (this%qc(job) .eq. QC_SUSPECT_BACKQC) cycle
+               if (this%qc(job) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
                do i = 1, nobs_neighbors
                   iob = iobs_neighbors_vector(i)
 
                   if (this%qc(iob) .eq. QC_REJECT) cycle
-                  if (this%qc(iob) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+                  if (this%qc(iob) .eq. QC_SUSPECT_BACKQC) cycle
+                  if (this%qc(iob) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
                   if (iob .eq. job) then
                      dist = 0
@@ -1903,7 +1906,7 @@ contains
                   else if (trim(this%net(iob)) .eq. trim(this%net(job))) then
                      ! Satellite observations have correlated errors.
                      ! EMK This is skipped if either iob or job is set to
-                     ! QC_MONITOR per cycle code above.
+                     ! a QC_SUSPECT flag per cycle code above.
                      if (.not. isUncorrObType(this%net(job))) then
                         if (this%oErrScaleLength(job) .eq. 0) then
                            write(LIS_logunit,*) &
@@ -1959,7 +1962,8 @@ contains
       do j = 1, nobs
          ! Skip bad data
          if ( this%qc(j) .eq. QC_REJECT) cycle
-         if ( this%qc(j) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+         if ( this%qc(j) .eq. QC_SUSPECT_BACKQC) cycle
+         if ( this%qc(j) .eq. QC_SUSPECT_SUPERSTATQC) cycle
          invDataDensities(j) = &
               invDataDensities(j)*(sigmaBSqr + this%sigmaOSqr(j))
          invDataDensities(j) = 1. / invDataDensities(j)
@@ -2002,7 +2006,8 @@ contains
       use LIS_coreMod, only : LIS_localPet, LIS_rc
       use LIS_logMod, only : LIS_logunit, LIS_endrun
       use LIS_mpiMod
-      use USAF_OBAMod, only: OBA, createOBA, assignOBA, QC_REJECT, QC_MONITOR
+      use USAF_OBAMod, only: OBA, createOBA, assignOBA, QC_REJECT, &
+           QC_SUSPECT_BACKQC, QC_SUSPECT_SUPERSTATQC
 
       ! Defaults
       implicit none
@@ -2170,7 +2175,8 @@ contains
                         cycle
                      endif
 
-                     if (this%qc(iob) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+                     if (this%qc(iob) .eq. QC_SUSPECT_BACKQC) cycle
+                     if (this%qc(iob) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
                      if (iob .eq. job) then
                         dist = 0
@@ -2192,8 +2198,10 @@ contains
                               trim(this%net(job))) then
                         ! Satellite data have horizontal error correlations
                         if (.not. isUncorrObType(this%net(job))) then
-                           ! EMK 17 Jan 2023
-                           if (this%qc(job) .eq. QC_MONITOR) then
+                           if (this%qc(job) .eq. QC_SUSPECT_BACKQC) then
+                              continue
+                           else if (this%qc(job) .eq. &
+                                QC_SUSPECT_SUPERSTATQC) then
                               continue
                            else
                               weight = weight + &
@@ -2282,7 +2290,8 @@ contains
 
             if (this%qc(j) .eq. QC_REJECT) cycle
 
-            if (this%qc(j) .ne. QC_MONITOR) then
+            if (this%qc(j) .ne. QC_SUSPECT_BACKQC .and. &
+                this%qc(j) .ne. QC_SUSPECT_SUPERSTATQC) then
 
                ! Check for convergence
                y_prev = pprev_ana(j)
@@ -2409,7 +2418,8 @@ contains
          icount = 0
          do j = 1, nobs
             if (this%qc(j) .eq. QC_REJECT) cycle
-            if (this%qc(j) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+            if (this%qc(j) .eq. QC_SUSPECT_BACKQC) cycle
+            if (this%qc(j) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
             if (present(skip)) then
                if (skip(j)) cycle
@@ -2425,7 +2435,7 @@ contains
          good_obs = USAF_countGoodObs(this)
          varOBA = createOBA(nest, maxobs=good_obs)
          do j = 1, nobs
-            if (this%qc(j) .eq. QC_REJECT) cycle ! Keep QC_MONITOR for OBA
+            if (this%qc(j) .eq. QC_REJECT) cycle ! Keep SUSPECT obs for OBA
             if (present(skip)) then
                if (skip(j)) cycle
             end if
@@ -2482,7 +2492,8 @@ contains
       use LIS_logMod, only : LIS_logunit, LIS_endrun
       use LIS_LMLCMod, only: LIS_LMLC
       use LIS_mpiMod
-      use USAF_OBAMod, only: QC_REJECT, QC_MONITOR
+      use USAF_OBAMod, only: QC_REJECT, QC_SUSPECT_BACKQC, &
+           QC_SUSPECT_SUPERSTATQC
 
       ! Defaults
       implicit none
@@ -2584,7 +2595,8 @@ contains
 
                ! Skip bad observations.
                if (this%qc(job) .eq. QC_REJECT) cycle
-               if (this%qc(job) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+               if (this%qc(job) .eq. QC_SUSPECT_BACKQC) cycle
+               if (this%qc(job) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
                dist = great_circle_distance(locallat,locallon, &
                     this%lat(job), this%lon(job))
@@ -3179,7 +3191,8 @@ contains
       use LIS_coreMod, only: LIS_domain, LIS_rc, LIS_localPet
       use LIS_logMod, only: LIS_logunit, LIS_endrun
       use LIS_mpiMod
-      use USAF_OBAmod, only: QC_REJECT, QC_MONITOR
+      use USAF_OBAmod, only: QC_REJECT, QC_SUSPECT_BACKQC, &
+           QC_SUSPECT_SUPERSTATQC
 
       ! Defaults
       implicit none
@@ -3304,7 +3317,8 @@ contains
 
             ! Skip bad data
             if ( this%qc(j) .eq. QC_REJECT) cycle
-            if ( this%qc(j) .eq. QC_MONITOR) cycle ! EMK 17 Jan 2023
+            if ( this%qc(j) .eq. QC_SUSPECT_BACKQC) cycle
+            if ( this%qc(j) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
             ! Screen by type
             if (present(network)) then
@@ -3516,7 +3530,7 @@ contains
       do j = 1, nobs
          if (actions(j) .eq. -1) then
             !this%qc(j) = QC_REJECT
-            this%qc(j) = QC_MONITOR ! EMK 17 Jan 2023
+            this%qc(j) = QC_SUSPECT_SUPERSTATQC ! EMK 31 Jan 2023
             if (.not. silent_rejects_local) then
                write(LIS_logunit,*) &
                     '[INFO] superstatQC rejection j: ',j, &
@@ -3530,7 +3544,7 @@ contains
             num_rejected_obs = num_rejected_obs + 1
          else if (actions(j) .eq. 1) then
             !this%qc(j) = QC_REJECT ! Was merged into superob
-            this%qc(j) = QC_MONITOR ! EMK 17 Jan 2023
+            this%qc(j) = QC_SUSPECT_SUPERSTATQC ! EMK 31 Jan 2023
             num_merged_obs = num_merged_obs + 1
          end if
       end do ! j
@@ -4002,7 +4016,8 @@ contains
       ! Imports
       use LIS_logMod, only: LIS_logunit, LIS_endrun
       use LIS_mpiMod
-      use USAF_OBAMod, only: QC_REJECT, QC_MONITOR
+      use USAF_OBAMod, only: QC_REJECT, QC_SUSPECT_BACKQC, &
+           QC_SUSPECT_SUPERSTATQC
 
       ! Defaults
       implicit none
@@ -4044,13 +4059,14 @@ contains
 
          ! Skip bad data
          if ( this%qc(r) .eq. QC_REJECT) cycle
+         if ( this%qc(r) .eq. QC_SUSPECT_SUPERSTATQC) cycle
 
          errorThresh = 4*sqrt(sigmaBSqr + this%sigmaOSqr(r))
          absDiff = abs(this%obs(r) - this%back(r))
 
          if (absDiff .gt. errorThresh) then
             !this%qc(r) = QC_REJECT
-            this%qc(r) = QC_MONITOR ! EMK 17 Jan 2023
+            this%qc(r) = QC_SUSPECT_BACKQC ! EMK 31 Jan 2023
 
             reject_count = reject_count + 1
 
@@ -4933,7 +4949,7 @@ contains
       use LIS_LMLCMod, only: LIS_LMLC
       use LIS_logMod, only: LIS_logunit
       use LIS_mpiMod
-      use USAF_OBAmod, only: QC_REJECT
+      use USAF_OBAmod, only: QC_REJECT, QC_GOOD
 
       ! Defaults
       implicit none
@@ -5572,7 +5588,7 @@ contains
    subroutine USAF_filterObsData(this,obsData)
 
       ! Import
-      use USAF_OBAMod, only: QC_REJECT
+      use USAF_OBAMod, only: QC_REJECT, QC_UNKNOWN, QC_GOOD
 
       ! Defaults
       implicit none
@@ -5582,19 +5598,24 @@ contains
       type(USAF_ObsData), intent(in) :: obsData
 
       ! Local variables
-      integer :: j
+      integer :: j, qc
 
       if ( obsData%nobs .eq. 0) return
 
       do j = 1, obsData%nobs
          if (obsData%qc(j) .eq. QC_REJECT) cycle
+         if (obsData%qc(j) .eq. QC_UNKNOWN) then
+            qc = QC_GOOD
+         else
+            qc = obsData%qc(j)
+         end if
          call USAF_assignObsData(this, &
               obsData%net(j),obsData%platform(j), &
               obsData%obs(j),obsData%lat(j),obsData%lon(j), &
               obsData%sigmaOSqr(j), &
               obsData%oErrScaleLength(j), &
               back=obsData%back(j), &
-              qc=obsData%qc(j))
+              qc=qc)
       end do ! j
 
    end subroutine USAF_filterObsData

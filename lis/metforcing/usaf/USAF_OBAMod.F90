@@ -58,17 +58,17 @@ module USAF_OBAMod
    ! Public parameters
    real, parameter, public :: QC_UNKNOWN = 0
    real, parameter, public :: QC_GOOD = 1
-   real, parameter, public :: QC_SUSPECT = 2
-   real, parameter, public :: QC_REJECT = 3
-   real, parameter, public :: QC_MONITOR = 4 ! EMK 17 Jan 2023
+   real, parameter, public :: QC_REJECT = 2
+   real, parameter, public :: QC_SUSPECT_BACKQC = 3
+   real, parameter, public :: QC_SUSPECT_SUPERSTATQC = 4
 
    ! Private parameter
-   character(10), parameter :: qc_string(5) = &
-        (/'QC_UNKNOWN', &
-          'QC_GOOD   ', &
-          'QC_SUSPECT', &
-          'QC_REJECT ', &
-          'QC_MONITOR'/)
+   character(11), parameter :: qc_string(5) = &
+        (/'UNKNOWN    ', &
+          'GOOD       ', &
+          'REJECT     ', &
+          'BACKQC     ', &
+          'SUPERSTATQC'/)
 
 contains
 
@@ -229,7 +229,7 @@ contains
          write(iunit, 1000, iostat=istat) trim(this%networks(j)), &
               trim(this%platforms(j)), this%latitudes(j), this%longitudes(j),&
               this%O(j), this%B(j), this%A(j), qc_string(this%qc(j)+1)
-         1000 format(a10,1x,a10,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,a10)
+         1000 format(a10,1x,a10,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,f8.3,1x,a11)
       end do ! j
 
       ! Close file

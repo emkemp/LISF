@@ -3462,8 +3462,12 @@ contains
                if (means(gindex) .eq. MISSING) cycle
 
                icount = superob_count(gindex)
-               threshold = 3 * this%sigmaOSqr(j) * &
-                    sqrt(real(icount) / real(icount-1))
+               !threshold = 3 * this%sigmaOSqr(j) * &
+               !     sqrt(real(icount) / real(icount-1))
+               !EMK...Fix typo (need sqrt of sigmaOSqr for units
+               ! to match), and increased threshold to 4 to match backQC
+               threshold = 4 * sqrt(this%sigmaOSqr(j) * &
+                    real(icount) / real(icount-1))
 
                if (abs(means(gindex) - this%obs(j)) .gt. threshold) then
                   actions_pet(j) = -1 ! Reject

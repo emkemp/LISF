@@ -3406,19 +3406,21 @@ contains
             if ( this%qc(j) .eq. QC_REJECT) cycle
 
             ! Screen by type
-            if (present(network)) then
-               if (trim(network) .eq. "SSMI") then
-                  if (.not. is_ssmi(this%net(j))) cycle
-               else if (trim(network) .eq. "GEOPRECIP") then
-                  if (.not. is_geoprecip(this%net(j))) cycle
-               else if (trim(network) .eq. "CMORPH") then
-                  if (.not. is_cmorph(this%net(j))) cycle
-               else if (trim(network) .eq. "IMERG") then
-                  if (.not. is_imerg(this%net(j))) cycle
-               end if
-            else ! Gauges
-               if (.not. is_gauge(this%net(j))) cycle
-            end if
+            ! if (present(network)) then
+            !    if (trim(network) .eq. "SSMI") then
+            !       if (.not. is_ssmi(this%net(j))) cycle
+            !    else if (trim(network) .eq. "GEOPRECIP") then
+            !       if (.not. is_geoprecip(this%net(j))) cycle
+            !    else if (trim(network) .eq. "CMORPH") then
+            !       if (.not. is_cmorph(this%net(j))) cycle
+            !    else if (trim(network) .eq. "IMERG") then
+            !       if (.not. is_imerg(this%net(j))) cycle
+            !    end if
+            ! else ! Gauges
+            !    if (.not. is_gauge(this%net(j))) cycle
+            ! end if
+            ! EMK...Only apply superstatQC to gage data
+            if (.not. is_gauge(this%net(j))) cycle
 
             ! Now see which LIS grid box this is in.  First, handle latitude.
             found = .false.
@@ -4181,6 +4183,9 @@ contains
 
          ! Skip bad data
          if ( this%qc(r) .eq. QC_REJECT) cycle
+
+         ! EMK...Only apply backQC to gage data.
+         if (.not. is_gauge(this%net(r))) cycle
 
          errorThresh = 4*sqrt(sigmaBSqr + this%sigmaOSqr(r))
          absDiff = abs(this%obs(r) - this%back(r))

@@ -3419,8 +3419,8 @@ contains
             ! else ! Gauges
             !    if (.not. is_gauge(this%net(j))) cycle
             ! end if
-            ! EMK...Only apply superstatQC to gage data
-            if (.not. is_gauge(this%net(j))) cycle
+            ! EMK...Do not apply to IMERG data
+            if (is_imerg(this%net(j))) cycle
 
             ! Now see which LIS grid box this is in.  First, handle latitude.
             found = .false.
@@ -4184,8 +4184,8 @@ contains
          ! Skip bad data
          if ( this%qc(r) .eq. QC_REJECT) cycle
 
-         ! EMK...Only apply backQC to gage data.
-         if (.not. is_gauge(this%net(r))) cycle
+         ! EMK...Don't apply backQC to IMERG data.
+         if (is_imerg(this%net(r))) cycle
 
          errorThresh = 4*sqrt(sigmaBSqr + this%sigmaOSqr(r))
          absDiff = abs(this%obs(r) - this%back(r))

@@ -22,6 +22,7 @@ module LDT_climoRstProcMod
 ! !REVISION HISTORY: 
 !  26 Jan 2016    Sujay Kumar  Initial Specification
 !  18 Oct 2017    Hiroko Beaudoing   Added binary format and VIC4.1.2.
+!   9 Sep 2026:   David Mocko; Added Noah-MP-5.0
 ! 
   use ESMF
   use LDT_coreMod
@@ -183,6 +184,8 @@ module LDT_climoRstProcMod
             model_name = "NOAHMP36"
          elseif(LDT_rc%lsm.eq."Noah-MP.4.0.1") then 
             model_name = "NOAHMP401"
+         elseif(LDT_rc%lsm.eq."Noah-MP.5.0") then 
+            model_name = "NOAHMP50"
          elseif(LDT_rc%lsm.eq."CLSMF2.5") then 
             model_name = "CLSMF25"
          elseif(LDT_rc%lsm.eq."RUC.3.7") then 
@@ -194,7 +197,7 @@ module LDT_climoRstProcMod
          else
             write(LDT_logunit,*) "[INFO] Climatological Restart File Generation - LSMs supported: "
             write(LDT_logunit,*) "  -- CLSMF2.5, Noah.3.2, Noah.3.3, Noah.3.6, Noah.3.9, "
-            write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, "
+            write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, Noah-MP.5.0, "
             write(LDT_logunit,*) "     Noah.2.7.1, RUC.3.7, VIC.4.1.1, VIC.4.1.2 "
             write(LDT_logunit,*) "[ERR] No other LSMs supported at this time ... stopping."
             call LDT_endrun() 
@@ -379,6 +382,8 @@ module LDT_climoRstProcMod
               model_name = "NOAHMP36"
            elseif(LDT_rc%lsm.eq."Noah-MP.4.0.1") then
               model_name = "NOAHMP401"
+           elseif(LDT_rc%lsm.eq."Noah-MP.5.0") then
+              model_name = "NOAHMP50"
            elseif(LDT_rc%lsm.eq."CLSMF2.5") then 
               model_name = "CLSMF25"
            elseif(LDT_rc%lsm.eq."RUC.3.7") then    
@@ -390,7 +395,7 @@ module LDT_climoRstProcMod
            else
               write(LDT_logunit,*) "[INFO] Climatological Restart File Generation - LSMs supported: "
               write(LDT_logunit,*) "  -- CLSMF2.5, Noah.3.2, Noah.3.3, Noah.3.6, Noah.3.9, "
-              write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, "
+              write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, Noah-MP.5.0, "
               write(LDT_logunit,*) "     Noah.2.7.1, RUC.3.7, VIC.4.1.1, VIC.4.1.2 "
               write(LDT_logunit,*) "[ERR] No other LSMs supported at this time ... stopping."
               call LDT_endrun() 

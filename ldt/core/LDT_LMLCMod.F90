@@ -120,7 +120,7 @@ contains
 
 ! !USES:
     use ESMF
-    use LDT_coreMod,  only : LDT_rc, LDT_config, LDT_domain
+    use LDT_coreMod,  only : LDT_rc, LDT_config
     use LDT_logMod,   only : LDT_verify, LDT_logunit
     use LDT_fileIOMod,only : LDT_readDomainConfigSpecs
     use LDT_paramOptCheckMod, only: LDT_LMLCOptChecks, LDT_gridOptChecks
@@ -137,6 +137,9 @@ contains
    integer :: n, c, r
    real, allocatable  :: landcover_fgrd(:,:,:)
    type(LDT_fillopts) :: landcover
+
+   external :: readlandcover
+   external :: readregmask
 ! _________________________________________________
 
 
@@ -461,7 +464,7 @@ contains
 
 ! !USES:
     use ESMF
-    use LDT_coreMod,  only : LDT_rc, LDT_config, LDT_domain
+    use LDT_coreMod,  only : LDT_rc, LDT_config
     use LDT_logMod,   only : LDT_verify, LDT_logunit
     use LDT_fileIOMod,only : LDT_readDomainConfigSpecs
     use LDT_paramOptCheckMod, only: LDT_LMLCOptChecks, LDT_gridOptChecks
@@ -480,10 +483,13 @@ contains
    type(LDT_fillopts) :: landcover
    integer            :: flag
 
-   integer             :: nc,nr,nlctypes, ntxtypes
-   real, allocatable   :: luindex(:,:),sctdom(:,:)
+   integer             :: nlctypes
+   real, allocatable   :: luindex(:,:)
    real                :: maxv, domv
-   real, allocatable   :: landcover1(:,:,:), texture1(:,:,:)
+   real, allocatable   :: landcover1(:,:,:)
+
+   external :: readlandcover
+   external :: readregmask
 ! _________________________________________________
 
 
@@ -1007,8 +1013,6 @@ contains
     integer      :: ftn
     integer      :: dimID(4)    !changed dimID(3) to dimID(4)
     integer      :: tdimID(4)
-    integer      :: varid
-    integer      :: luindexId
     integer      :: flag
 
 #if(defined USE_NETCDF3 || defined USE_NETCDF4)
@@ -1185,7 +1189,6 @@ contains
 !EOP
     integer  :: n 
     integer  :: ftn
-    integer  :: ierr
 
 !    call LDT_writeNETCDFdata(n,ftn,LDT_LSMparam_struc(n)%landcover)
 
@@ -1219,7 +1222,6 @@ contains
 !EOP
     integer  :: n 
     integer  :: ftn
-    integer  :: ierr
     integer  :: nc,nr
     integer  :: flag
 

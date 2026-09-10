@@ -121,10 +121,8 @@ contains
 !EOP
    implicit none
    integer, intent (in)      :: flag
-   integer  :: n,i,c,r,m
+   integer  :: n,c,r
    integer  :: rc
-   real     :: temp
-   logical  :: file_exists
    logical  :: check_data
    type(LDT_fillopts) :: tbot
    type(LDT_fillopts) :: slopetype
@@ -135,6 +133,14 @@ contains
    type(MMF_BCsReader):: MBR_FDEPTH, MBR_RECH, MBR_RIVERBED, MBR_WTD, MBR_HGT
    logical            :: run_mmf = .false.
 
+   external :: read_NCEP_slopetype
+   external :: read_GFS_slopetype
+   external :: read_NCEPNative_slopetype
+   external :: read_CONSTANT_slopetype
+   external :: read_NCEP_tbot
+   external :: read_NCEP_GFS_tbot
+   external :: read_ISLSCP1_tbot
+   external :: read_CONSTANT_tbot
 ! _____________________________________________________________________
 
    allocate( Noah_struc(LDT_rc%nnest) )

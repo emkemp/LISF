@@ -320,7 +320,7 @@ module LDT_soilsMod
 !
 !EOP
     implicit none
-    integer  :: n, i, c, r
+    integer  :: n, i
     integer  :: rc
     character*50        :: soilclr_proj
     real, allocatable   :: soilfrac_array(:,:,:)
@@ -328,13 +328,18 @@ module LDT_soilsMod
     real, allocatable   :: soilclr_gridDesc(:,:)
     type(LDT_fillopts)  :: soiltext
     type(LDT_fillopts)  :: soilfrac
-    type(LDT_fillopts)  :: soilcolor
-    type(LDT_fillopts)  :: soildepth
-    type(LDT_fillopts)  :: rootdepth
     type(LDT_fillopts)  :: porosity
     logical             :: soil_select
     logical             :: check_data
     
+    external :: setTextureattribs
+    external :: setHSGattribs
+    external :: readsoildepth
+    external :: readsoiltexture
+    external :: readsoilfrac
+    external :: readcolor
+    external :: readporosity
+    external :: readhsg
 ! _____________________________________________________________________________
     
 
@@ -1031,9 +1036,6 @@ module LDT_soilsMod
     real, allocatable   :: soilclr_gridDesc(:,:)
     type(LDT_fillopts)  :: soiltext
     type(LDT_fillopts)  :: soilfrac
-    type(LDT_fillopts)  :: soilcolor
-    type(LDT_fillopts)  :: soildepth
-    type(LDT_fillopts)  :: rootdepth
     type(LDT_fillopts)  :: porosity
     logical             :: soil_select
     logical             :: check_data
@@ -1043,6 +1045,16 @@ module LDT_soilsMod
     real, allocatable   :: sctdom(:,:)
     real                :: maxv, domv
     real, allocatable   :: texture1(:,:,:)    
+
+    external :: setTextureattribs
+    external :: setHSGattribs
+    external :: readsoildepth
+    external :: readsoiltexture
+    external :: readsoilfrac
+    external :: readcolor
+    external :: readporosity
+    external :: readhsg
+    
 ! _____________________________________________________________________________
     
 
@@ -1872,7 +1884,6 @@ module LDT_soilsMod
     integer    :: dimID(4)
     integer    :: tdimID(4)
     integer    :: flag
-    integer    :: sctdomId   
 #if(defined USE_NETCDF3 || defined USE_NETCDF4)
 
     tdimID(1) = dimID(1)
@@ -2024,7 +2035,6 @@ module LDT_soilsMod
 !EOP
     integer      :: n 
     integer      :: ftn
-    integer      :: ierr
 
     if(LDT_LSMparam_struc(n)%texture%selectOpt.eq.1) then
        call LDT_writeNETCDFdata(n,ftn,LDT_LSMparam_struc(n)%texture)
@@ -2083,7 +2093,6 @@ module LDT_soilsMod
 !EOP
     integer      :: n 
     integer      :: ftn
-    integer      :: ierr
     integer      :: flag
     integer      :: nc,nr    
 

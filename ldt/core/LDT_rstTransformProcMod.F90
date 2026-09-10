@@ -76,9 +76,8 @@ contains
 !
 !EOP  
   
-    integer                   :: n,i 
+    integer                   :: n
     integer                   :: status
-    character*20              :: stime
     character*100             :: model_name      
     
     n = 1
@@ -152,7 +151,7 @@ contains
     implicit none
 
     integer               :: ftn, ftn2
-    integer               :: k,i,t,m,c,r,kk
+    integer               :: k,t,c,r,kk
     integer               :: iret
     integer               :: nDims
     integer               :: nVars
@@ -183,7 +182,6 @@ contains
     integer,     allocatable  :: nvardimIds(:)
     real   ,     allocatable  :: var(:,:)
     real   ,     allocatable  :: var_new(:,:)
-    real   ,     allocatable  :: var3d(:,:,:)
     integer,     allocatable  :: dims(:)
     integer,     allocatable  :: dimID(:),dimID2(:)
     real   ,     allocatable  :: var1_2d(:)
@@ -200,6 +198,9 @@ contains
     real   ,     allocatable  :: n12(:)
     real   ,     allocatable  :: n21(:)
     real   ,     allocatable  :: n22(:)
+
+    external :: neighbor_interp_input_withgrid
+    external :: neighbor_interp
 
       ! Generate router model ensemble restart file:
     if(LDT_rc%rstsource.eq."LSM") then 

@@ -61,6 +61,7 @@ contains
 ! !INTERFACE: 
   subroutine LSMparams_init_LIS()
     integer :: flag
+    external :: lsmparamprocinit
     flag = 0
 
     if(LDT_rc%lsm.ne."none") then 
@@ -77,7 +78,7 @@ contains
   subroutine LSMparams_init_LISHydro(flag)
     
     integer   :: flag
-
+    external :: lsmparamprocinit
     flag = 1
 
     if(LDT_rc%lsm.ne."none") then 
@@ -111,7 +112,7 @@ contains
     integer     :: ftn
     integer     :: dimID(3)
     integer     :: monthID
-
+    external :: lsmparamprocwriteheader
     if(LDT_rc%lsm.ne."none") then 
        call lsmparamprocwriteheader(trim(LDT_rc%lsm)//char(0),&
             n,ftn,dimID, monthID)
@@ -129,6 +130,7 @@ contains
 
     integer     :: n
     integer     :: ftn
+    external :: lsmparamprocwritedata
 
     if(LDT_rc%lsm.ne."none") then 
        call lsmparamprocwritedata(trim(LDT_rc%lsm)//char(0),&

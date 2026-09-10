@@ -113,6 +113,8 @@ module LDT_climoRstProcMod
       character*3               :: month_name(12)
       character*100             :: model_name      
 
+      external :: system
+
       n = 1
       
       month_name = (/"JAN","FEB","MAR","APR","MAY","JUN",&
@@ -351,10 +353,8 @@ module LDT_climoRstProcMod
       real                      :: offset
       real                      :: vmin
       real                      :: vmax
-      real                      :: gmt
-      real*8                    :: time
       real,        allocatable  :: var(:,:)
-      integer                   :: yr, mo, da, hr, mn, ss,doy
+      integer                   :: yr, mo, da, hr, mn, ss
       logical                   :: alarmCheck
       logical                   :: file_exists
       real,        allocatable  :: tmptilen(:)

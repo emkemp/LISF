@@ -27,6 +27,7 @@ module Noah_parmsMod
 !  08 Aug 2005: Sujay Kumar; Initial implementation
 !  04 Aug 2012: K. Arsenault: Made updates to Tbot inputs  
 !  27 Aug 2021: Sarith Mahanama: MMF groundwater parameters were added.
+!  09 Sep 2026: David Mocko; Added Noah-MP-5.0
   
   use ESMF
   use LDT_coreMod
@@ -120,10 +121,8 @@ contains
 !EOP
    implicit none
    integer, intent (in)      :: flag
-   integer  :: n,i,c,r,m
+   integer  :: n,c,r
    integer  :: rc
-   real     :: temp
-   logical  :: file_exists
    logical  :: check_data
    type(LDT_fillopts) :: tbot
    type(LDT_fillopts) :: slopetype
@@ -134,6 +133,14 @@ contains
    type(MMF_BCsReader):: MBR_FDEPTH, MBR_RECH, MBR_RIVERBED, MBR_WTD, MBR_HGT
    logical            :: run_mmf = .false.
 
+   external :: read_NCEP_slopetype
+   external :: read_GFS_slopetype
+   external :: read_NCEPNative_slopetype
+   external :: read_CONSTANT_slopetype
+   external :: read_NCEP_tbot
+   external :: read_NCEP_GFS_tbot
+   external :: read_ISLSCP1_tbot
+   external :: read_CONSTANT_tbot
 ! _____________________________________________________________________
 
    allocate( Noah_struc(LDT_rc%nnest) )
@@ -154,7 +161,8 @@ contains
             full_name="Noah LSM slope type")
 
       if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.                        &
-          (LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+          (LDT_rc%lsm.eq."Noah-MP.4.0.1").or.                      &
+          (LDT_rc%lsm.eq."Noah-MP.5.0")) then
          call set_param_attribs(Noah_struc(n)%pblh,"NOAHMP36_PBLH",&
                units="m", &
                full_name="Noah-MP LSM planetary boundary height")
@@ -472,7 +480,8 @@ contains
 ! -- Noah-MP Planetary Boundary Layer Height: --
 
    check_data = .false.
-   if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+   if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1") &
+                                    .or.(LDT_rc%lsm.eq."Noah-MP.5.0")) then
 
 !   if(check_data) &! then
      write(LDT_logunit,*)" - - - - - - - - - Noah-MP Parameters - - - - - - - - - - - -"
@@ -626,7 +635,8 @@ contains
              Noah_struc(n)%slopetype)
 
     if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.                        &
-         (LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+        (LDT_rc%lsm.eq."Noah-MP.4.0.1").or.                      &
+        (LDT_rc%lsm.eq."Noah-MP.5.0")) then
        call LDT_writeNETCDFdataHeader(n,ftn,dimID,&
             Noah_struc(n)%pblh)
     endif
@@ -654,7 +664,8 @@ contains
     call LDT_writeNETCDFdata(n,ftn,Noah_struc(n)%slopetype)
 
     if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.                        &
-        (LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+        (LDT_rc%lsm.eq."Noah-MP.4.0.1").or.                      &
+        (LDT_rc%lsm.eq."Noah-MP.5.0")) then
         call LDT_writeNETCDFdata(n,ftn,Noah_struc(n)%pblh)
     endif
     if (LDT_rc%lsm.eq."Noah-MP.4.0.1") then

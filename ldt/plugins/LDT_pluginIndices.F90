@@ -28,6 +28,7 @@ module LDT_pluginIndices
 !  28 Jun 2022: Eric Kemp -- Added NAFPA background precipitation
 !  24 Apr 2025: Yeosang Yoon -- Added RAPID
 !  08 Jul 2025: Eric Kemp -- Added SNIP
+!  09 Sep 2026: David Mocko -- Added Noah-MP-5.0
 !
 !EOP
   PRIVATE
@@ -195,6 +196,7 @@ module LDT_pluginIndices
    character*50, public,  parameter :: LDT_noah39Id      = "Noah.3.9"
    character*50, public,  parameter :: LDT_noahmp36Id    = "Noah-MP.3.6"
    character*50, public,  parameter :: LDT_noahmp401Id   = "Noah-MP.4.0.1"
+   character*50, public,  parameter :: LDT_noahmp50Id    = "Noah-MP.5.0"
    character*50, public,  parameter :: LDT_ac72Id        = "AquaCrop.7.2"
    character*50, public,  parameter :: LDT_clm2Id        = "CLM.2"
    character*50, public,  parameter :: LDT_clm45Id       = "CLM.4.5"

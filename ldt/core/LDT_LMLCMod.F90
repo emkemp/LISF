@@ -26,6 +26,7 @@ module LDT_LMLCMod
 !  18 Jul 2008: Sujay Kumar; Initial implementation
 !  18 Jul 2013: KR Arsenault; Expanded options
 !  30 Nov 2018: David Mocko; Added Bondville landcover classification
+!   9 Sep 2026: David Mocko; Added Noah-MP-5.0
 !
 #if(defined USE_NETCDF3 || defined USE_NETCDF4)
   use netcdf
@@ -119,7 +120,7 @@ contains
 
 ! !USES:
     use ESMF
-    use LDT_coreMod,  only : LDT_rc, LDT_config, LDT_domain
+    use LDT_coreMod,  only : LDT_rc, LDT_config
     use LDT_logMod,   only : LDT_verify, LDT_logunit
     use LDT_fileIOMod,only : LDT_readDomainConfigSpecs
     use LDT_paramOptCheckMod, only: LDT_LMLCOptChecks, LDT_gridOptChecks
@@ -136,6 +137,9 @@ contains
    integer :: n, c, r
    real, allocatable  :: landcover_fgrd(:,:,:)
    type(LDT_fillopts) :: landcover
+
+   external :: readlandcover
+   external :: readregmask
 ! _________________________________________________
 
 
@@ -460,7 +464,7 @@ contains
 
 ! !USES:
     use ESMF
-    use LDT_coreMod,  only : LDT_rc, LDT_config, LDT_domain
+    use LDT_coreMod,  only : LDT_rc, LDT_config
     use LDT_logMod,   only : LDT_verify, LDT_logunit
     use LDT_fileIOMod,only : LDT_readDomainConfigSpecs
     use LDT_paramOptCheckMod, only: LDT_LMLCOptChecks, LDT_gridOptChecks
@@ -479,10 +483,13 @@ contains
    type(LDT_fillopts) :: landcover
    integer            :: flag
 
-   integer             :: nc,nr,nlctypes, ntxtypes
-   real, allocatable   :: luindex(:,:),sctdom(:,:)
+   integer             :: nlctypes
+   real, allocatable   :: luindex(:,:)
    real                :: maxv, domv
-   real, allocatable   :: landcover1(:,:,:), texture1(:,:,:)
+   real, allocatable   :: landcover1(:,:,:)
+
+   external :: readlandcover
+   external :: readregmask
 ! _________________________________________________
 
 
@@ -867,7 +874,8 @@ contains
          LDT_rc%lc_type(n)))
 
   ! Attributes serving Noah-MP only (at this time):
-    if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+    if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1") &
+                                     .or.(LDT_rc%lsm.eq."Noah-MP.5.0")) then
       select case( LDT_rc%lc_type(n) ) 
        case( "IGBPNCEP" ) 
          call LDT_verify(nf90_put_att(ftn,NF90_GLOBAL,"NUMBER_LANDCATS", &
@@ -1005,8 +1013,6 @@ contains
     integer      :: ftn
     integer      :: dimID(4)    !changed dimID(3) to dimID(4)
     integer      :: tdimID(4)
-    integer      :: varid
-    integer      :: luindexId
     integer      :: flag
 
 #if(defined USE_NETCDF3 || defined USE_NETCDF4)
@@ -1183,7 +1189,6 @@ contains
 !EOP
     integer  :: n 
     integer  :: ftn
-    integer  :: ierr
 
 !    call LDT_writeNETCDFdata(n,ftn,LDT_LSMparam_struc(n)%landcover)
 
@@ -1217,7 +1222,6 @@ contains
 !EOP
     integer  :: n 
     integer  :: ftn
-    integer  :: ierr
     integer  :: nc,nr
     integer  :: flag
 

@@ -41,6 +41,7 @@ module LDT_soilsMod
 !
 !  21 Oct 2005: Sujay Kumar; Initial implementation
 !  21 Nov 2012: K. Arsenault; Include additional soil parameters
+!   9 Sep 2026: David Mocko; Added Noah-MP-5.0
 !
   use ESMF
 #if ( defined SPMD )
@@ -319,7 +320,7 @@ module LDT_soilsMod
 !
 !EOP
     implicit none
-    integer  :: n, i, c, r
+    integer  :: n, i
     integer  :: rc
     character*50        :: soilclr_proj
     real, allocatable   :: soilfrac_array(:,:,:)
@@ -327,13 +328,18 @@ module LDT_soilsMod
     real, allocatable   :: soilclr_gridDesc(:,:)
     type(LDT_fillopts)  :: soiltext
     type(LDT_fillopts)  :: soilfrac
-    type(LDT_fillopts)  :: soilcolor
-    type(LDT_fillopts)  :: soildepth
-    type(LDT_fillopts)  :: rootdepth
     type(LDT_fillopts)  :: porosity
     logical             :: soil_select
     logical             :: check_data
     
+    external :: setTextureattribs
+    external :: setHSGattribs
+    external :: readsoildepth
+    external :: readsoiltexture
+    external :: readsoilfrac
+    external :: readcolor
+    external :: readporosity
+    external :: readhsg
 ! _____________________________________________________________________________
     
 
@@ -1030,9 +1036,6 @@ module LDT_soilsMod
     real, allocatable   :: soilclr_gridDesc(:,:)
     type(LDT_fillopts)  :: soiltext
     type(LDT_fillopts)  :: soilfrac
-    type(LDT_fillopts)  :: soilcolor
-    type(LDT_fillopts)  :: soildepth
-    type(LDT_fillopts)  :: rootdepth
     type(LDT_fillopts)  :: porosity
     logical             :: soil_select
     logical             :: check_data
@@ -1042,6 +1045,16 @@ module LDT_soilsMod
     real, allocatable   :: sctdom(:,:)
     real                :: maxv, domv
     real, allocatable   :: texture1(:,:,:)    
+
+    external :: setTextureattribs
+    external :: setHSGattribs
+    external :: readsoildepth
+    external :: readsoiltexture
+    external :: readsoilfrac
+    external :: readcolor
+    external :: readporosity
+    external :: readhsg
+    
 ! _____________________________________________________________________________
     
 
@@ -1824,7 +1837,8 @@ module LDT_soilsMod
          LDT_rc%soil_classification(1)))
 
   ! Attributes serving Noah-MP only (at this time):
-    if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1")) then
+    if ((LDT_rc%lsm.eq."Noah-MP.3.6").or.(LDT_rc%lsm.eq."Noah-MP.4.0.1") &
+                                     .or.(LDT_rc%lsm.eq."Noah-MP.5.0")) then
     ! Number of soil types:
       if( LDT_rc%soil_classification(1) == "STATSGO" ) then
          call LDT_verify(nf90_put_att(ftn,NF90_GLOBAL,"NUMBER_SOILTYPES", &
@@ -1870,7 +1884,6 @@ module LDT_soilsMod
     integer    :: dimID(4)
     integer    :: tdimID(4)
     integer    :: flag
-    integer    :: sctdomId   
 #if(defined USE_NETCDF3 || defined USE_NETCDF4)
 
     tdimID(1) = dimID(1)
@@ -2022,7 +2035,6 @@ module LDT_soilsMod
 !EOP
     integer      :: n 
     integer      :: ftn
-    integer      :: ierr
 
     if(LDT_LSMparam_struc(n)%texture%selectOpt.eq.1) then
        call LDT_writeNETCDFdata(n,ftn,LDT_LSMparam_struc(n)%texture)
@@ -2081,7 +2093,6 @@ module LDT_soilsMod
 !EOP
     integer      :: n 
     integer      :: ftn
-    integer      :: ierr
     integer      :: flag
     integer      :: nc,nr    
 

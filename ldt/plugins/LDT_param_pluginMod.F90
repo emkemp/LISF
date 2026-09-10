@@ -27,6 +27,7 @@ module LDT_param_pluginMod
 !  12 Apr 2021:  Wanshu Nie   - groundwater irrigation ratio added
 !  28 Jun 2022:  Eric Kemp    - Added NAFPA background precipitation
 !  24 Apr 2025:  Yeosang Yoon - Added RAPID
+!   9 Sep 2026:  David Mocko  - Added Noah-MP-5.0
 !EOP
 
   use LDT_pluginIndices
@@ -140,6 +141,14 @@ contains
     call registerlsmparamprocwriteheader(trim(LDT_noahmp401Id)//char(0),&
          NoahParms_writeHeader)
     call registerlsmparamprocwritedata(trim(LDT_noahmp401Id)//char(0),&
+         NoahParms_writeData)
+
+  ! Noah-MP (v5.0) LSM:
+    call registerlsmparamprocinit(trim(LDT_noahmp50Id)//char(0),&
+         NoahParms_init)
+    call registerlsmparamprocwriteheader(trim(LDT_noahmp50Id)//char(0),&
+         NoahParms_writeHeader)
+    call registerlsmparamprocwritedata(trim(LDT_noahmp50Id)//char(0),&
          NoahParms_writeData)
 
   ! AquaCrop 7.2 LSM:
@@ -286,6 +295,10 @@ contains
     use HYMAP_parmsMod   ! Set for both HYMAP 1 and 2
     use RAPID_parmsMod
 
+    external :: registerroutingparamprocinit
+    external :: registerroutingparamprocwriteheader
+    external :: registerroutingparamprocwritedata
+
     ! HYMAP - version 1
     call registerroutingparamprocinit(trim(LDT_HYMAPId)//char(0),&
          HYMAPParms_init)
@@ -322,6 +335,10 @@ contains
   subroutine LDT_lakeparam_plugin
 !EOP
     use FLAKE_parmsMod
+
+    external :: registerlakeparamprocinit
+    external :: registerlakeparamprocwriteheader
+    external :: registerlakeparamprocwritedata
 
     call registerlakeparamprocinit(trim(LDT_flakeId)//char(0),&
          FLAKEparms_init)
@@ -391,6 +408,11 @@ contains
 !EOP
 
     use Monfredaetal08_crops_module, only : read_Monfredaetal08_croptype
+
+    external :: registerreadlc
+    external :: registerreadregmask
+    external :: registerreadcroptype
+    external :: registerreadrootdepth
 
     external set_AVHRR_lc_attribs
     external read_avhrr_lc
@@ -566,6 +588,11 @@ contains
   subroutine LDT_topo_plugin
 !EOP
 
+    external :: registerreadelev
+    external :: registerreadslope
+    external :: registerreadaspect
+    external :: registerreadcurv
+
     external read_GTOPO30_elev
     external read_GTOPO30_GFS_elev
     external read_GTOPO30Native_elev
@@ -701,6 +728,15 @@ contains
 ! !INTERFACE:
   subroutine LDT_soils_plugin
 !EOP
+
+    external :: registerreadsoilfrac
+    external :: registerreadsoiltexture
+    external :: registerreadcolor
+    external :: registerreadporosity
+    external :: registersettextureattribs
+    external :: registersethsgattribs
+    external :: registerreadhsg
+    external :: registerreadsoildepth
 
   ! FAO-only
     external read_FAO_soilfractions, read_FAO_texture, read_FAO_color, &
@@ -902,6 +938,12 @@ contains
   subroutine LDT_laisai_plugin
 !EOP
 
+    external :: registersetlaiattribs
+    external :: registerreadlai
+    external :: registerreadsai
+    external :: registerreadlaimax
+    external :: registerreadlaimin
+
     external set_AVHRR_lai_attribs
     external read_AVHRR_lai,read_AVHRR_sai
 
@@ -984,6 +1026,10 @@ contains
   subroutine LDT_irrigation_plugin
 !EOP
 
+    external :: registerreadirrigfrac
+    external :: registerreadirrigtype
+    external :: registerreadirriggwratio
+
     external read_OzdoganGutman_irrigfrac
 
     external read_GRIPC_irrigtype
@@ -1052,6 +1098,11 @@ contains
 ! !INTERFACE:
   subroutine LDT_gfrac_plugin
 !EOP
+
+    external :: registerreadgfrac
+    external :: registerreadshdmax
+    external :: registerreadshdmin
+
     external read_AVHRR_gfrac, read_NCEP_shdmax, read_NCEP_shdmin
 
     external set_AVHRRNative_gfrac_attribs
@@ -1151,6 +1202,9 @@ contains
 ! !INTERFACE:
   subroutine LDT_alb_plugin
 !EOP
+
+    external :: registerreadalbedo
+    external :: registerreadmxsnoalb
 
     external read_Briegleb_albedo
 
@@ -1286,6 +1340,8 @@ contains
 !
 !EOP
 
+    external :: registerreadforcelev
+
     external read_gdas_elev
     external read_nldas2_elev
     external read_nam242_elev
@@ -1351,6 +1407,10 @@ contains
 ! !INTERFACE:
   subroutine LDT_glacier_plugin
 !EOP
+
+    external :: registerreadglaciermask
+    external :: registerreadglacierfrac
+
     external read_GLIMS_glaciermask
     external read_GLIMS_glacierfraction
 

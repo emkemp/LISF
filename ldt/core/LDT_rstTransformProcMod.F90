@@ -21,6 +21,7 @@ module LDT_rstTransformProcMod
 !
 ! !REVISION HISTORY: 
 !  26 Jan 2016    Sujay Kumar  Initial Specification
+!   9 Sep 2026    David Mocko  Added Noah-MP-5.0
 ! 
   use ESMF
   use LDT_coreMod
@@ -75,9 +76,8 @@ contains
 !
 !EOP  
   
-    integer                   :: n,i 
+    integer                   :: n
     integer                   :: status
-    character*20              :: stime
     character*100             :: model_name      
     
     n = 1
@@ -112,6 +112,8 @@ contains
           model_name = "NOAHMP36"
        elseif(LDT_rc%lsm.eq."Noah-MP.4.0.1") then 
           model_name = "NOAHMP401"
+       elseif(LDT_rc%lsm.eq."Noah-MP.5.0") then 
+          model_name = "NOAHMP50"
        elseif(LDT_rc%lsm.eq."CLSMF2.5") then 
           model_name = "CLSMF25"
        elseif(LDT_rc%lsm.eq."RUC.3.7") then 
@@ -125,7 +127,7 @@ contains
        else
           write(LDT_logunit,*) "[INFO] Restart File transform - LSMs supported: "
           write(LDT_logunit,*) "  -- CLSMF2.5, Noah.3.2, Noah.3.3, Noah.3.6, Noah.3.9, "
-          write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, "
+          write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, Noah-MP.5.0, "
           write(LDT_logunit,*) "     Noah.2.7.1, RUC.3.7, VIC.4.1.1, VIC.4.1.2 "
           write(LDT_logunit,*) "[ERR] No other LSMs supported at this time ... stopping."
           call LDT_endrun() 
@@ -133,7 +135,7 @@ contains
     else
        write(LDT_logunit,*) "[INFO] Restart File transform - Only support the following LSM: "
        write(LDT_logunit,*) "  -- CLSMF2.5, Noah.3.2, Noah.3.3, Noah.3.6, Noah.3.9, "
-       write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, "
+       write(LDT_logunit,*) "  -- Noah-MP.3.6, Noah-MP.4.0.1, Noah-MP.5.0, "
        write(LDT_logunit,*) "     Noah.2.7.1, RUC.3.7, VIC.4.1.1, VIC.4.1.2 "
        write(LDT_logunit,*) "[ERR] No other surface models supported at this time ... stopping."
        call LDT_endrun()
@@ -149,7 +151,7 @@ contains
     implicit none
 
     integer               :: ftn, ftn2
-    integer               :: k,i,t,m,c,r,kk
+    integer               :: k,t,c,r,kk
     integer               :: iret
     integer               :: nDims
     integer               :: nVars
@@ -180,7 +182,6 @@ contains
     integer,     allocatable  :: nvardimIds(:)
     real   ,     allocatable  :: var(:,:)
     real   ,     allocatable  :: var_new(:,:)
-    real   ,     allocatable  :: var3d(:,:,:)
     integer,     allocatable  :: dims(:)
     integer,     allocatable  :: dimID(:),dimID2(:)
     real   ,     allocatable  :: var1_2d(:)
@@ -197,6 +198,9 @@ contains
     real   ,     allocatable  :: n12(:)
     real   ,     allocatable  :: n21(:)
     real   ,     allocatable  :: n22(:)
+
+    external :: neighbor_interp_input_withgrid
+    external :: neighbor_interp
 
       ! Generate router model ensemble restart file:
     if(LDT_rc%rstsource.eq."LSM") then 

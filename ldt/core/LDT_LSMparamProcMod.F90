@@ -20,6 +20,7 @@ module LDT_LSMparamProcMod
 !
 ! !REVISION HISTORY: 
 !  14 Aug 2014:  Sujay Kumar;  Initial Specification
+!   9 Sep 2026:  David Mocko;  Added Noah-MP-5.0
 ! 
   use ESMF
   use LDT_coreMod
@@ -60,6 +61,7 @@ contains
 ! !INTERFACE: 
   subroutine LSMparams_init_LIS()
     integer :: flag
+    external :: lsmparamprocinit
     flag = 0
 
     if(LDT_rc%lsm.ne."none") then 
@@ -76,7 +78,7 @@ contains
   subroutine LSMparams_init_LISHydro(flag)
     
     integer   :: flag
-
+    external :: lsmparamprocinit
     flag = 1
 
     if(LDT_rc%lsm.ne."none") then 
@@ -86,7 +88,8 @@ contains
             LDT_rc%lsm.ne."Noah.3.6".or.&
             LDT_rc%lsm.ne."Noah.3.9".or.&
             LDT_rc%lsm.ne."Noah-MP.3.6".or.&
-            LDT_rc%lsm.ne."Noah-MP.4.0.1") then 
+            LDT_rc%lsm.ne."Noah-MP.4.0.1".or.&
+            LDT_rc%lsm.ne."Noah-MP.5.0") then 
 
           call lsmparamprocinit(trim(LDT_rc%lsm)//char(0),flag)
        else
@@ -109,7 +112,7 @@ contains
     integer     :: ftn
     integer     :: dimID(3)
     integer     :: monthID
-
+    external :: lsmparamprocwriteheader
     if(LDT_rc%lsm.ne."none") then 
        call lsmparamprocwriteheader(trim(LDT_rc%lsm)//char(0),&
             n,ftn,dimID, monthID)
@@ -127,6 +130,7 @@ contains
 
     integer     :: n
     integer     :: ftn
+    external :: lsmparamprocwritedata
 
     if(LDT_rc%lsm.ne."none") then 
        call lsmparamprocwritedata(trim(LDT_rc%lsm)//char(0),&

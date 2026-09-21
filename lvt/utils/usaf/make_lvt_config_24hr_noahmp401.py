@@ -18,10 +18,13 @@ Sample script to customize lvt.config files for noahmp401 postprocessing for
 import datetime
 import os
 
+_TEMPLATE = "templates/lvt.config.template.noahmp401"
 
-_TEMPLATE = "templates/lvt.config.template.noahmp401.rapid"
-
-_STARTDT = datetime.datetime(2025, 1, 20, 12)
+#_STARTDT = datetime.datetime(2024, 9, 25, 12)
+#_ENDDT = datetime.datetime(2024, 9, 26, 12)
+#_STARTDT = datetime.datetime(2025, 1, 20, 12)
+#_ENDDT = datetime.datetime(2025, 1, 21, 12)
+_STARTDT = datetime.datetime(2025, 1, 21, 12)
 _ENDDT = datetime.datetime(2025, 1, 22, 12)
 
 #_OUTPUT = "netcdf"
@@ -33,6 +36,8 @@ _VAR_ATTRIBUTES = {
     "Evap        1  1  kg/m2s -  1  1 Evap        1  1  kg/m2s -  1  1",
     "LWdown_f_tavg":
         "LWdown_f    1  1  W/m2   -  1  1 LWdown_f    1  1  W/m2   -  1  1 ",
+    "PotEvap_tavg":
+        "PotEvap     1  1  W/m2   -  1  1 PotEvap     1  1  W/m2   -  1  1",
     "SoilMoist_tavg":
         "SoilMoist   1  4  m3/m3  -  1  4 SoilMoist   1  4  m3/m3  -  1  4",
     "SoilTemp_tavg":
@@ -59,14 +64,14 @@ _VAR_ATTRIBUTES_SPECIAL = {
 
 # Smooth variables that are perturbed, derived from perturbed variables,
 # or are LSM outputs that are affected by perturbed variables via physics.
-_SMOOTH_VARS = ["Evap_tavg", "LWdown_f_tavg",
+_SMOOTH_VARS = ["Evap_tavg", "LWdown_f_tavg", "PotEvap_tavg",
                "SoilMoist_tavg",
                "SoilTemp_tavg", "SWdown_f_tavg",
                "Tair_f_max", "Tair_f_tavg",
                "TotalPrecip_acc", "Tair_f_min", "RHMin_inst"]
 
 def _main():
-    """Main Driver"""
+    """Main driver"""
 
     with open(_TEMPLATE, 'r', encoding="ascii") as file:
         lines = file.readlines()
@@ -114,6 +119,7 @@ def _main():
                     keys = sorted(list(_VAR_ATTRIBUTES_SPECIAL.keys()))
                     for key in keys:
                         line += f"{_VAR_ATTRIBUTES_SPECIAL[key]}\n"
+                        # The general case
                 else:
                     line += f"{_VAR_ATTRIBUTES[var]}\n"
             elif "Metrics attributes file:" in line:
@@ -126,7 +132,8 @@ def _main():
                 line = 'Metrics output frequency: "24hr"\n'
             elif "LIS output attributes file:" in line:
                 line = "LIS output attributes file:"
-                line += f" ./tables/MODEL_OUTPUT_LIST.TBL.lvt_557post.{var}.24hr\n"
+                line += \
+                 f" ./tables/MODEL_OUTPUT_LIST.TBL.lvt_557post.{var}.24hr\n"
 
             newlines.append(line)
 

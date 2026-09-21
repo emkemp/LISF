@@ -12,7 +12,7 @@
 
 """
 Sample script for submitting LVT postprocessing batch jobs on Discover for
-noahmp401 for 557WW.
+noah39 for 557WW.
 """
 
 import os
@@ -22,7 +22,7 @@ import time
 
 _VARS = ["SoilMoist_tavg", "SoilTemp_tavg",
         "RHMin_inst",
-        "Evap_tavg", "LWdown_f_tavg",
+        "Evap_tavg", "LWdown_f_tavg", "PotEvap_tavg",
         "SWdown_f_tavg",
         "Tair_f_max",
         "Tair_f_tavg",
@@ -30,7 +30,6 @@ _VARS = ["SoilMoist_tavg", "SoilTemp_tavg",
 
 def _main():
     """Main driver"""
-
     if not os.path.exists("LVT"):
         print("ERROR, LVT executable does not exist!")
         sys.exit(1)
@@ -43,9 +42,7 @@ def _main():
 #SBATCH --time=1:00:00
 #SBATCH --account s1189
 #SBATCH --output {var}.24hr.slurm.out
-#Adjust node, core, and hardware constraints here
 #SBATCH --ntasks=1 --constraint="[mil]"
-#Set quality of service, if needed.
 
 if [ ! -z $SLURM_SUBMIT_DIR ] ; then
     cd $SLURM_SUBMIT_DIR || exit 1
@@ -53,7 +50,7 @@ fi
 
 module purge
 module use --append /home/emkemp/privatemodules/sles15
-module load lisf_7.6_intel_2023.2.1_emk_aiml
+module load lisf_7.8_intel_2023.2.1_emk_aiml
 
 if [ ! -e ./LVT ] ; then
    echo "ERROR, LVT does not exist!" && exit 1

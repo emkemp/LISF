@@ -24,6 +24,10 @@
 #   support.  No HYMAP support.
 # 18 Aug 2026:  Eric Kemp (SSAI), further logic updates, and renamed to
 #   better describe function.
+# 22 Sep 2026:  Eric Kemp (SSAI), replaced LSM and Routing command line
+#   arguments with single generating_process argument.  Revised _INVOCATION
+#   dictionary.  Revised order of command line arguments to simplify
+#   manual processing of multiple valid times.
 #
 #------------------------------------------------------------------------------
 """
@@ -36,11 +40,9 @@ import sys
 
 #------------------------------------------------------------------------------
 
-# Supported LIS LSMs
-_LIS_LSMS = ["NOAH", "NOAHMP"]
-
-# Supported LIS Routing models
-_LIS_ROUTINGS = ["RAPID"]
+# Supported generating processes
+_GENERATING_PROCESSES = ["LIS-NRT-NOAH", "LIS-NRT-NOAHMP",
+                         "LIS-NRT-NOAH-RAPID", "LIS-NRT-NOAHMP-RAPID"]
 
 # The LVT invocations for Noah LSM output.  Each invocation handles a subset
 # of the total variable list due to memory limitations.
@@ -110,42 +112,74 @@ _LVT_NOAHMP_INVOCATIONS_24HR = ['Evap_tavg', 'LWdown_f_tavg', 'PotEvap_tavg',
 # The 24-hr postprocessing should include the latest 3-hr snow depth and SWE.
 _LVT_NOAHMP_INVOCATIONS_24HR_LATEST = ['SnowDepth_inst', 'SWE_inst']
 
-
-# The combined invocation directory for all supported LSMs and Routing models.
+# The combined invocation dictionary for all supported generating processes.
 _INVOCATIONS = {
-    "NOAH_RAPID_3HR": _LVT_NOAH_INVOCATIONS_3HR,
-    "NOAH_RAPID_24HR": _LVT_NOAH_INVOCATIONS_24HR,
-    "NOAH_RAPID_24HR_LATEST": _LVT_NOAH_INVOCATIONS_24HR_LATEST,
-    "NOAHMP_RAPID_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
-    "NOAHMP_RAPID_24HR": _LVT_NOAHMP_INVOCATIONS_24HR,
-    "NOAHMP_RAPID_24HR_LATEST": _LVT_NOAHMP_INVOCATIONS_24HR_LATEST,
+    "LIS-NRT-NOAH_3HR": _LVT_NOAH_INVOCATIONS_3HR,
+    "LIS-NRT-NOAH-RAPID_3HR": _LVT_NOAH_INVOCATIONS_3HR,
+    "LIS-NRT-NOAH_24HR": _LVT_NOAH_INVOCATIONS_24HR,
+    "LIS-NRT-NOAH-RAPID_24HR": _LVT_NOAH_INVOCATIONS_24HR,
+    "LIS-NRT-NOAH_24HR_LATEST": _LVT_NOAH_INVOCATIONS_24HR_LATEST,
+    "LIS-NRT-NOAH-RAPID_24HR_LATEST": _LVT_NOAH_INVOCATIONS_24HR_LATEST,
+    "LIS-NRT-NOAHMP_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
+    "LIS-NRT-NOAHMP-RAPID_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
+    "LIS-NRT-NOAHMP_24HR": _LVT_NOAHMP_INVOCATIONS_24HR,
+    "LIS-NRT-NOAHMP-RAPID_24HR": _LVT_NOAHMP_INVOCATIONS_24HR,
+    "LIS-NRT-NOAHMP_24HR_LATEST": _LVT_NOAHMP_INVOCATIONS_24HR_LATEST,
+    "LIS-NRT-NOAHMP-RAPID_24HR_LATEST": _LVT_NOAHMP_INVOCATIONS_24HR_LATEST,
 }
 
 # -----------------------------------------------------------------------------
 def _usage():
     """Print command line usage"""
-    print(f"Usage: {sys.argv[0]} yyyymmddhh fhh lsm routing period " + \
+    print(f"Usage: {sys.argv[0]} yyyymmddhh fhh generating_process period " + \
           "[--nospread]")
+    print(f"Usage: {sys.argv[0]} generating_process period yyyymmddhh fhh" + \
+          "[--nospread]")
+
     print("   where:")
+    print("        generating_process is GP section of LIS output filename")
+    print("        period is time period (hours) for postprocessing (3 or 24)")
     print("        yyyymmddhh is LIS start year/month/day/hour in UTC")
     print("        fhh is LIS forecast hour (hh) in UTC")
-    print("        lsm is name of land surface model used by LIS")
-    print("        routing is name of routing model used by LIS")
-    print("        period is time period (hours) for postprocessing (3 or 24)")
     print("        --nospread is optional flag to skip ensemble spread")
 
 # -----------------------------------------------------------------------------
 def _read_cmd_args():
     """Read command line arguments"""
     # Check if argument count is correct
-    if len(sys.argv) not in [6, 7]:
+    if len(sys.argv) not in [5, 6]:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
 
+    # Get generating_process
+    generating_process = None
+    if sys.argv[1] in _GENERATING_PROCESSES:
+        generating_process = sys.argv[1]
+    if generating_process is None:
+        print("[ERR] Invalid generating_process selection!")
+        print(f" generated_processes value is {sys.argv[1]}")
+        text = " Supported generated_processes:"
+        for generating_process in _GENERATING_PROCESSES:
+            text += f" {generating_process}"
+        print(text)
+        sys.exit(1)
+
+    # Get processing period
+    period_options = [3, 24]
+    period = None
+    tmp_int = int(sys.argv[2])
+    if tmp_int in period_options:
+        period = tmp_int
+    if period is None:
+        print("[ERR] Invalid period selection!")
+        print(f" period value is {sys.argv[2]}")
+        print(" Supported time periods are: 3 and 24")
+        sys.exit(1)
+
     # Get the start date, the start hour (cycle hour), and the forecast hour
-    yyyymmddhh = sys.argv[1]
-    fhh = sys.argv[2]
+    yyyymmddhh = sys.argv[3]
+    fhh = sys.argv[4]
     try:
         year = int(yyyymmddhh[0:4])
         month = int(yyyymmddhh[4:6])
@@ -159,59 +193,21 @@ def _read_cmd_args():
         _usage()
         sys.exit(1)
 
-    # Get lsm name
-    lsm = None
-    if sys.argv[3] in _LIS_LSMS:
-        lsm = sys.argv[3]
-    if lsm is None:
-        print("[ERR] Invalid lsm selection!")
-        print(f" lsm value is {sys.argv[3]}")
-        text = " Supported lsms:"
-        for lsm in _LIS_LSMS:
-            text += f" {lsm}"
-        print(text)
-        sys.exit(1)
-
-    # Get routing name
-    routing = None
-    if sys.argv[4] in _LIS_ROUTINGS:
-        routing = sys.argv[4]
-    if routing is None:
-        print("[ERR] Invalid routing selection!")
-        print(f" routing value is {sys.argv[4]}")
-        text = " Supported routing models:"
-        for routing in _LIS_ROUTINGS:
-            text += f" {routing}"
-        print(text)
-        sys.exit(1)
-
-    # Get processing hour
-    period_options = [3, 24]
-    period = None
-    tmp_int = int(sys.argv[5])
-    if tmp_int in period_options:
-        period = tmp_int
-    if period is None:
-        print("[ERR] Invalid period selection!")
-        print(f" period value is {sys.argv[5]}")
-        print(" Supported time periods are: 3 and 24")
-        sys.exit(1)
-
     # Check if ensemble spread should be skipped
     skip_ens_spread = False
-    if len(sys.argv) == 7:
-        if sys.argv[6] == "--nospread":
+    if len(sys.argv) == 6:
+        if sys.argv[5] == "--nospread":
             skip_ens_spread = True
         else:
-            print(f"[ERR] Invalid argument {sys.argv[6]}")
+            print(f"[ERR] Invalid argument {sys.argv[5]}")
             _usage()
 
-    return validdt, forecast_hour, lsm, routing, period, skip_ens_spread
+    return validdt, forecast_hour, generating_process, period, skip_ens_spread
 
 # -----------------------------------------------------------------------------
-def _get_gr2_mean_files(validdt, forecast_hour, lsm, routing, period):
+def _get_gr2_mean_files(validdt, forecast_hour, generating_process, period):
     """Collect GRIB2 mean files"""
-    key = f"{lsm}_{routing}_{period}HR"
+    key = f"{generating_process}_{period}HR"
     invocation_list = _INVOCATIONS[key]
 
     mean_gr2_infiles = {}
@@ -221,7 +217,7 @@ def _get_gr2_mean_files(validdt, forecast_hour, lsm, routing, period):
     basename = "PS.557WW"
     basename += "_SC.U"
     basename += "_DI.C"
-    basename += f"_GP.LIS-NRT-{lsm}-{routing}"
+    basename += f"_GP.{generating_process}"
     basename += "_GR.C0P09DEG"
     basename += "_AR.GLOBAL"
     if period == 24:
@@ -255,9 +251,9 @@ def _get_gr2_mean_files(validdt, forecast_hour, lsm, routing, period):
     return mean_gr2_infiles, mean_gr2_outfile
 
 # -----------------------------------------------------------------------------
-def _get_gr2_ssdev_files(validdt, forecast_hour, lsm, routing, period):
+def _get_gr2_ssdev_files(validdt, forecast_hour, generating_process, period):
     """Collect GRIB2 ssdev files"""
-    key = f"{lsm}_{routing}_{period}HR"
+    key = f"{generating_process}_{period}HR"
     invocation_list = _INVOCATIONS[key]
 
     ssdev_gr2_infiles = {}
@@ -267,7 +263,7 @@ def _get_gr2_ssdev_files(validdt, forecast_hour, lsm, routing, period):
     basename = "PS.557WW"
     basename += "_SC.U"
     basename += "_DI.C"
-    basename += f"_GP.LIS-NRT-{lsm}-{routing}"
+    basename += f"_GP.{generating_process}"
     basename += "_GR.C0P09DEG"
     basename += "_AR.GLOBAL"
     if period == 24:
@@ -302,10 +298,10 @@ def _get_gr2_ssdev_files(validdt, forecast_hour, lsm, routing, period):
     return ssdev_gr2_infiles, ssdev_gr2_outfile
 
 # -----------------------------------------------------------------------------
-def _get_gr2_latest_files(validdt, forecast_hour, lsm, routing):
+def _get_gr2_latest_files(validdt, forecast_hour, generating_process):
     """Collect GRIB2 latest files"""
 
-    key = f"{lsm}_{routing}_24HR_LATEST"
+    key = f"{generating_process}_24HR_LATEST"
     invocation_list = _INVOCATIONS[key]
 
     latest_gr2_infiles = {}
@@ -315,7 +311,7 @@ def _get_gr2_latest_files(validdt, forecast_hour, lsm, routing):
     basename = "PS.557WW"
     basename += "_SC.U"
     basename += "_DI.C"
-    basename += f"_GP.LIS-NRT-{lsm}-{routing}"
+    basename += f"_GP.{generating_process}"
     basename += "_GR.C0P09DEG"
     basename += "_AR.GLOBAL"
     basename += "_PA.LIS"
@@ -337,17 +333,17 @@ def _get_gr2_latest_files(validdt, forecast_hour, lsm, routing):
     return latest_gr2_infiles
 
 # -----------------------------------------------------------------------------
-def _merge_gr2_files(lsm, routing, period, gr2_infiles, gr2_outfile,
-                    latest_gr2_infiles=None):
+def _merge_gr2_files(generating_process, period, gr2_infiles, gr2_outfile,
+                     latest_gr2_infiles=None):
     """Use cat to merge GRIB2 fields together"""
-    key = f"{lsm}_{routing}_{period}HR"
+    key = f"{generating_process}_{period}HR"
     invocations = _INVOCATIONS[key][0:]
     cmd = "cat"
     for invocation in invocations:
         cmd += f" {gr2_infiles[invocation]}"
     # For 24-hr postprocessing, we also must concatenate several 3-hr fields
     if latest_gr2_infiles is not None:
-        key = f"{lsm}_{routing}_24HR_LATEST"
+        key = f"{generating_process}_24HR_LATEST"
         invocations = _INVOCATIONS[key][:]
         for invocation in invocations:
             cmd += f" {latest_gr2_infiles[invocation]}"
@@ -365,31 +361,32 @@ def _merge_gr2_files(lsm, routing, period, gr2_infiles, gr2_outfile,
 def _main():
     """Main driver"""
     # Process command line arguments
-    validdt, forecast_hour, lsm, routing, period, skip_ens_spread = \
+    validdt, forecast_hour, generating_process, period, skip_ens_spread = \
         _read_cmd_args()
 
     # Collect GRIB2 files
     (mean_gr2_infiles, mean_gr2_outfile) = \
-        _get_gr2_mean_files(validdt, forecast_hour, lsm, routing, period)
+        _get_gr2_mean_files(validdt, forecast_hour, generating_process, period)
     # 3-hr postprocessing includes ensemble spread files
     if period == 3 and not skip_ens_spread:
         (ssdev_gr2_infiles, ssdev_gr2_outfile) = \
-            _get_gr2_ssdev_files(validdt, forecast_hour, lsm, routing, period)
+            _get_gr2_ssdev_files(validdt, forecast_hour, generating_process,
+                                 period)
     # 24-hr postprocessing includes several latest 3-hr fields
     if period == 24:
         latest_gr2_infiles = _get_gr2_latest_files(validdt, forecast_hour,
-                                                   lsm, routing)
+                                                   generating_process)
 
     # Merge the input GRIB2 files together
     if period == 3:
-        _merge_gr2_files(lsm, routing, period, mean_gr2_infiles, \
+        _merge_gr2_files(generating_process, period, mean_gr2_infiles, \
                          mean_gr2_outfile)
         if not skip_ens_spread:
-            _merge_gr2_files(lsm, routing, period, ssdev_gr2_infiles, \
+            _merge_gr2_files(generating_process, period, ssdev_gr2_infiles, \
                              ssdev_gr2_outfile)
     else:
         # 24-hr processing
-        _merge_gr2_files(lsm, routing, period, mean_gr2_infiles,
+        _merge_gr2_files(generating_process, period, mean_gr2_infiles,
                          mean_gr2_outfile, latest_gr2_infiles)
 
 if __name__ == "__main__":

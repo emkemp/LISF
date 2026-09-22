@@ -28,6 +28,10 @@
 #
 # REVISION HISTORY:
 # 18 Aug 2026:  Eric Kemp (SSAI), based on earlier run_ncks.py script.
+# 22 Sep 2026:  Eric Kemp (SSAI), replaced LSM and Routing command line
+#   arguments with single generating_process argument.  Revised _INVOCATION
+#   dictionary.  Revised order of command line arguments to simplify manual
+#   processing of multiple valid times.
 #
 #------------------------------------------------------------------------------
 """
@@ -43,11 +47,9 @@ import sys
 # Path to NCO ncks program
 _NCKS_PATH = "/usr/local/other/nco/5.1.7/bin/ncks" # On Discover
 
-# Supported LIS LSMs
-_LIS_LSMS = ["NOAH", "NOAHMP"]
-
-# Supported LIS ROUTING models
-_LIS_ROUTING = ["RAPID"]
+# Supported generating processes
+_GENERATING_PROCESSES = ["LIS-NRT-NOAH", "LIS-NRT-NOAHMP",
+                         "LIS-NRT-NOAH-RAPID", "LIS-NRT-NOAHMP-RAPID"]
 
 # The LVT invocations for Noah LSM output.  Each invocation handles a subset
 # of the total variable list due to memory limitations.
@@ -57,7 +59,6 @@ _LVT_NOAH_INVOCATIONS_3HR = ['Qs_tavg', 'Qsb_tavg',
                              'SoilMoist_inst', 'SoilMoist_tavg',
                              'SoilTemp_inst', 'SoilTemp_tavg',
                              'SWE_inst', 'TotalPrecip_acc']
-
 
 # The LVT invocations for NoahMP LSM output.  Each invocation handles a subset
 # of the total variable list due to memory limitations.
@@ -70,8 +71,10 @@ _LVT_NOAHMP_INVOCATIONS_3HR = ['Qs_tavg', 'Qsb_tavg',
 
 # The combined invocation dictionary for all supported LSMs.
 _INVOCATIONS = {
-    "NOAH_3HR": _LVT_NOAH_INVOCATIONS_3HR,
-    "NOAHMP_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
+    "LIS-NRT-NOAH_3HR" : _LVT_NOAH_INVOCATIONS_3HR,
+    "LIS-NRT-NOAH-RAPID_3HR" : _LVT_NOAH_INVOCATIONS_3HR,
+    "LIS-NRT-NOAHMP_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
+    "LIS-NRT-NOAHMP-RAPID_3HR": _LVT_NOAHMP_INVOCATIONS_3HR,
 }
 
 # The Noah variables handled by each LVT invocation.
@@ -86,8 +89,10 @@ for var in _LVT_NOAHMP_INVOCATIONS_3HR:
 
 # Combined breakdown of all variables handled by LSM and LVT invocation.
 _LIS_VARIABLES = {
-    "NOAH_3HR": _LIS_NOAH_VARIABLES_3HR,
-    "NOAHMP_3HR": _LIS_NOAHMP_VARIABLES_3HR,
+    "LIS-NRT-NOAH_3HR" : _LIS_NOAH_VARIABLES_3HR,
+    "LIS-NRT-NOAH-RAPID_3HR" : _LIS_NOAH_VARIABLES_3HR,
+    "LIS-NRT-NOAHMP_3HR": _LIS_NOAHMP_VARIABLES_3HR,
+    "LIS-NRT-NOAHMP-RAPID_3HR": _LIS_NOAHMP_VARIABLES_3HR,
 }
 
 # These variables are processed by all invocations, and are generated
@@ -97,24 +102,36 @@ _OTHER_VARIABLES = ["latitude", "longitude", "time"]
 #------------------------------------------------------------------------------
 def _usage():
     """Print command line usage"""
-    print(f"Usage: {sys.argv[0]} yyyymmddhh fhr lsm routing")
+    print(f"Usage: {sys.argv[0]} generating_process yyyymmddhh fhr")
     print("   where:")
+    print("           generating_process is GP section of LIS output filename")
     print("           yyyymmddhh is start year/month/day/hour in UTC")
     print("           fhr forecast hour")
-    print("           lsm is name of land surface model used by LIS")
-    print("           routing is name of routing model used by LIS")
 
 #------------------------------------------------------------------------------
 def _read_cmd_args():
     """Read command line arguments"""
     # Check if argument count is correct
-    if len(sys.argv) not in [5]:
+    if len(sys.argv) not in [4]:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
 
+    # Get generating_process
+    generating_process = None
+    if sys.argv[1] in _GENERATING_PROCESSES:
+        generating_process = sys.argv[1]
+    if generating_process is None:
+        print("[ERR] Invalid generating_process selection!")
+        print(f" generated_processes value is {sys.argv[1]}")
+        text = " Supported generated_processes:"
+        for generating_process in _GENERATING_PROCESSES:
+            text += f" {generating_process}"
+        print(text)
+        sys.exit(1)
+
     # Convert yyyymmddhh argument to a datetime object
-    yyyymmddhh = sys.argv[1]
+    yyyymmddhh = sys.argv[2]
     try:
         year = int(yyyymmddhh[0:4])
         month = int(yyyymmddhh[4:6])
@@ -127,45 +144,19 @@ def _read_cmd_args():
         sys.exit(1)
 
     try:
-        fhr = int(sys.argv[2])
+        fhr = int(sys.argv[3])
     except ValueError:
         print("[ERR] Cannot process fhr argument!")
         _usage()
         sys.exit(1)
 
-    # Get lsm name
-    lsm = None
-    if sys.argv[3] in _LIS_LSMS:
-        lsm = sys.argv[3]
-    if lsm is None:
-        print("[ERR] Invalid lsm selection!")
-        print(f" lsm value is {sys.argv[3]}")
-        text = " Supported lsms:"
-        for lsm in _LIS_LSMS:
-            text += f" {lsm}"
-        print(text)
-        sys.exit(1)
-
-    # Get routing name
-    routing = None
-    if sys.argv[4] in _LIS_ROUTING:
-        routing = sys.argv[4]
-    if routing is None:
-        print("[ERR] Invalid routing selection!")
-        print(f" routing value is {sys.argv[4]}")
-        text = " Supported routing models:"
-        for routing in _LIS_ROUTING:
-            text += f" {routing}"
-        print(text)
-        sys.exit(1)
-
-    # See if ncks exists and is executable by current user (the script)
+    # See if ncks exists and is executable by current user (the script).
     # This used to be specified on the command line, but is now hardwired
     # to better comply with Air Force security requirements.
     ncks = _NCKS_PATH
     _check_ncks_path(ncks)
 
-    return startdt, fhr, lsm, routing
+    return startdt, fhr, generating_process
 
 #------------------------------------------------------------------------------
 def _check_ncks_path(ncks):
@@ -180,9 +171,9 @@ def _check_ncks_path(ncks):
         sys.exit(1)
 
 #------------------------------------------------------------------------------
-def _get_nc_mean_files(startdt, fhr, lsm, routing):
+def _get_nc_mean_files(startdt, fhr, generating_process):
     """Collect netCDF mean files"""
-    key = f"{lsm}_3HR"
+    key = f"{generating_process}_3HR"
     invocation_list = _INVOCATIONS[key]
 
     mean_nc_infiles = {}
@@ -194,7 +185,7 @@ def _get_nc_mean_files(startdt, fhr, lsm, routing):
         path += "/PS.557WW"
         path += "_SC.U"
         path += "_DI.C"
-        path += f"_GP.LIS-NRT-{lsm}-{routing}"
+        path += f"_GP.{generating_process}"
         path += "_GR.C0P09DEG"
         path += "_AR.GLOBAL"
         path += "_PA.SURFACEMODEL"
@@ -216,7 +207,7 @@ def _get_nc_mean_files(startdt, fhr, lsm, routing):
     path += "/PS.557WW"
     path += "_SC.U"
     path += "_DI.C"
-    path += f"_GP.LIS-NRT-{lsm}-{routing}"
+    path += f"_GP.{generating_process}"
     path += "_GR.C0P09DEG"
     path += "_AR.GLOBAL"
     path += "_PA.SURFACEMODEL"
@@ -231,13 +222,12 @@ def _get_nc_mean_files(startdt, fhr, lsm, routing):
     return mean_nc_infiles, mean_nc_outfile
 
 #------------------------------------------------------------------------------
-def _merge_nc_files(lsm, routing, nc_infiles,
+def _merge_nc_files(generating_process, nc_infiles,
                     nc_outfile):
     """Use ncks to merge netCDF fields together"""
 
     ncks = _NCKS_PATH
-
-    key = f"{lsm}_3HR"
+    key = f"{generating_process}_3HR"
 
     # Start with ensemble mean
     cmd = f"cp {nc_infiles[_INVOCATIONS[key][0]]} {nc_outfile}"
@@ -266,14 +256,14 @@ def _merge_nc_files(lsm, routing, nc_infiles,
 def _main():
     """Main driver"""
     # Process command line arguments
-    startdt, fhr, lsm, routing = _read_cmd_args()
+    startdt, fhr, generating_process = _read_cmd_args()
 
     # Collect netCDF files
     (mean_nc_infiles, mean_nc_outfile) = \
-        _get_nc_mean_files(startdt, fhr, lsm, routing)
+        _get_nc_mean_files(startdt, fhr, generating_process)
 
     # Merge the input netCDF files together
-    _merge_nc_files(lsm, routing, mean_nc_infiles, mean_nc_outfile)
+    _merge_nc_files(generating_process, mean_nc_infiles, mean_nc_outfile)
 
 #------------------------------------------------------------------------------
 if __name__ == "__main__":

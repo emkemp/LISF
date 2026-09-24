@@ -8355,6 +8355,8 @@ subroutine get_moc_attributes(modelSpecConfig, head_dataEntry, &
                 call LVT_endrun()
              endif
 
+             write(LVT_logunit,*) 'EMK: short_name: ', trim(short_name)
+
              ios = nf90_inq_varid(ftn,trim(short_name),varid)
 !This is for backward compatibility support - remove later
 !If the suffixes do not work, try the variable name without the suffix

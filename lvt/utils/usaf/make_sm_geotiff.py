@@ -326,4 +326,5 @@ def _main():
 
 # Main driver
 if __name__ == "__main__":
+    gdal.UseExceptions()
     _main()

@@ -38,7 +38,8 @@
 # 02 Jun 2023:  Eric Kemp (SSAI), further updates for 557 WW file
 #               convention for output.
 # 30 Jan 2026:  Eric Kemp (SSAI), updated for LSM-ROUTING match.
-# 24 Sep 2026:  Eric Kemp (SSAI), updated for generating_process.
+# 25 Sep 2026:  Eric Kemp (SSAI), updated for generating_process and
+#               output filenames.
 #
 #------------------------------------------------------------------------------
 """
@@ -89,19 +90,20 @@ _557WW_SOIL_LAYERS = {
 def _usage():
     """Print command line usage."""
     txt = f"[INFO] Usage: {sys.argv[0]} ldtfile tsfile finalfile"
-    txt += " generating_process yyyymmddhh"
+    txt += " generating_process yyyymmddhh fhr"
     print(txt)
     print("[INFO]  where:")
     print("[INFO]   ldtfile: LDT parameter file with full lat/lon data")
     print("[INFO]   tsfile: LVT 'TS' soil moisture anomaly file")
     print("[INFO]   finalfile: LVT 'FINAL' soil moisture anomaly file")
     print("[INFO]   generating_process: generating process ID")
-    print("[INFO]   yyyymmddhh: Valid date and time (UTC)")
+    print("[INFO]   yyyymmddhh: LIS start date and time (UTC)")
+    print("[INFO]   fhr: LIS forecast hour (hh) in UTC")
 
 def _read_cmd_args():
     """Read command line arguments."""
     # Check if argument count is correct
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 7:
         print("[ERR] Invalid number of command line arguments!")
         _usage()
         sys.exit(1)
@@ -122,8 +124,7 @@ def _read_cmd_args():
     ncid_lvt.close()
 
     generating_process = sys.argv[4]
-    generating_processes = list(_SOIL_LAYERS.keys())
-    generating_processes.sort()
+    generating_processes = sorted(_SOIL_LAYERS)
     if generating_process not in generating_processes:
         print(f"[ERR] Unknown generating process {generating_processes}")
         txt = "Options are"
@@ -133,13 +134,28 @@ def _read_cmd_args():
         sys.exit(1)
 
     yyyymmddhh = sys.argv[5]
+    fhh = sys.argv[6]
+    try:
+        year = int(yyyymmddhh[0:4])
+        month = int(yyyymmddhh[4:6])
+        day = int(yyyymmddhh[6:8])
+        hour = int(yyyymmddhh[8:10])
+        startdt = datetime.datetime(year, month, day, hour)
+        forecast_hour = int(fhh)
+        validdt = startdt + datetime.timedelta(hours=forecast_hour)
+    except ValueError:
+        print("[ERR] Cannot process valid time arguments!")
+        _usage()
+        sys.exit(1)
 
     cmd_args = {
         "ldtfile" : ldtfile,
         "tsfile" : tsfile,
         "finalfile" : finalfile,
         "generating_process" : generating_process,
-        "yyyymmddhh" : yyyymmddhh,
+        "startdt" : startdt,
+        "forecast_hour" : forecast_hour,
+        "validdt" : validdt,
     }
     return cmd_args
 
@@ -166,30 +182,28 @@ def _create_output_raster(outfile, nxx, nyy, geotransform, var1):
     output_raster = gdal.GetDriverByName('GTiff').Create(outfile,
                                                          nxx, nyy, 1,
                                                          gdal.GDT_Float32)
-
     output_raster.SetGeoTransform(geotransform)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326) # Corresponds to WGS 84
     output_raster.GetRasterBand(1).SetNoDataValue(-9999)
     output_raster.SetProjection(srs.ExportToWkt())
     output_raster.GetRasterBand(1).WriteArray(var1)
-
     return output_raster
 
 def _set_metadata(varname, soil_layer, generating_process, \
-                  yyyymmddhh, \
+                  validdt, startdt, forecast_hour, \
                   climomonth=None):
     """Create metadata dictionary for output to GeoTIFF file"""
-    validdt = datetime.datetime(year=int(yyyymmddhh[0:4]),
-                                month=int(yyyymmddhh[4:6]),
-                                day=int(yyyymmddhh[6:8]),
-                                hour=int(yyyymmddhh[8:10]))
     metadata = { 'varname' : f'{varname}',
                  'units' : 'm3/m3',
                  'soil_layer' : f'{soil_layer}',
                  'generating_process' : f'{generating_process}' }
     if climomonth is None:
-        time_string = f"Valid {validdt.hour:02}Z {validdt.day} "
+        time_string = f"Start {startdt.hour:02}Z {startdt.day:02}"
+        time_string += f"{_MONTHS[startdt.month-1]} {startdt.year:04}"
+        metadata["start_date_time"] = time_string
+        metadata["forecast_hour"] = f"{forecast_hour:02d} hour forecast"
+        time_string = f"Valid {validdt.hour:02}Z {validdt.day:02} "
         time_string += f"{_MONTHS[validdt.month-1]} {validdt.year:04}"
         metadata["valid_date_time"] = time_string
     else:
@@ -197,18 +211,18 @@ def _set_metadata(varname, soil_layer, generating_process, \
         time_string += f"{_MONTHS[validdt.month-1]} {validdt.year:04}"
         metadata["update_date_time"] = time_string
         metadata["climo_month"] = climomonth
-
     return metadata
 
-def _make_outfile_anomaly(generating_process, i, yyyymmddhh):
+def _make_outfile_anomaly(generating_process, i, startdt, forecast_hour):
     """Create anomaly filename"""
     filename = "PS.557WW_SC.U_DI.C"
-    filename += f"_GP.LIS-{generating_process}"
-    filename += "_GR.C0P09DEG_AR.GLOBAL"
+    filename += f"_GP.{generating_process}"
+    filename +=  "_GR.C0P09DEG_AR.GLOBAL"
     filename += f"_LY.{_557WW_SOIL_LAYERS[generating_process][i]}"
     filename += f"_PA.SM-ANOMALY"
-    filename += f"_DD.{yyyymmddhh[0:8]}"
-    filename += f"_DT.{yyyymmddhh[8:10]}00_DF.TIF"
+    filename += f"_DD.{startdt.year:04}{startdt.month:02}{startdt.day:02}"
+    filename += f"_CY.{startdt.hour:02}"
+    filename += f"_FH.{forecast_hour:03}_DF.TIF"
     return filename
 
 def _proc_sm_anomalies(cmd_args, longitudes, latitudes):
@@ -226,7 +240,8 @@ def _proc_sm_anomalies(cmd_args, longitudes, latitudes):
         geotransform = _make_geotransform(longitudes, latitudes, ncols, nrows)
         outfile_anomaly = \
             _make_outfile_anomaly(cmd_args["generating_process"], i,
-                                  cmd_args["yyyymmddhh"])
+                                  cmd_args["startdt"],
+                                  cmd_args["forecast_hour"])
         varname = "Soil Moisture Anomaly"
         output_raster = _create_output_raster(outfile_anomaly,
                                               ncols, nrows, geotransform,
@@ -234,22 +249,25 @@ def _proc_sm_anomalies(cmd_args, longitudes, latitudes):
         metadata = _set_metadata(varname=varname,
                                  soil_layer=soil_layer,
                                  generating_process= \
-                                 cmd_args["generating_process"],
-                                 yyyymmddhh=cmd_args["yyyymmddhh"])
+                                   cmd_args["generating_process"],
+                                 validdt=cmd_args["validdt"],
+                                 startdt=cmd_args["startdt"],
+                                 forecast_hour=cmd_args["forecast_hour"])
         output_raster.GetRasterBand(1).SetMetadata(metadata)
         output_raster.FlushCache() # Write to disk
         del output_raster
     ncid.close()
 
-def _make_outfile_climo(generating_process, i, month, yyyymmddhh):
+def _make_outfile_climo(generating_process, i, month, validdt):
     """Create climatology filename"""
     filename = "PS.557WW_SC.U_DI.C_DC.CLIMO"
     filename += f"_GP.{generating_process}"
-    filename += "_GR.C0P09DEG_AR.GLOBAL"
+    filename +=  "_GR.C0P09DEG_AR.GLOBAL"
     filename += f"_LY.{_557WW_SOIL_LAYERS[generating_process][i]}"
     filename += f"_PA.SM-{month}"
-    filename += f"_DP.20080101-{yyyymmddhh[0:8]}"
-    filename += f"_DF.TIF"
+    filename +=  "_DP.20080101-" + \
+        f"{validdt.year:04}{validdt.month:02}{validdt.day:02}"
+    filename +=  "_DF.TIF"
     return filename
 
 def _proc_sm_climo(cmd_args, longitudes, latitudes):
@@ -266,7 +284,7 @@ def _proc_sm_climo(cmd_args, longitudes, latitudes):
                                               ncols, nrows)
             outfile_climo = \
                 _make_outfile_climo(cmd_args["generating_process"], i,
-                                    month, cmd_args["yyyymmddhh"])
+                                    month, cmd_args["validdt"])
             varname = "Climatological Soil Moisture"
             output_raster = \
                 _create_output_raster(outfile_climo,
@@ -277,11 +295,12 @@ def _proc_sm_climo(cmd_args, longitudes, latitudes):
                               soil_layer= \
                               _SOIL_LAYERS[cmd_args["generating_process"]][i],
                               generating_process= \
-                              cmd_args["generating_process"],
-                              yyyymmddhh=cmd_args["yyyymmddhh"],
+                                cmd_args["generating_process"],
+                              validdt=cmd_args["validdt"],
+                              startdt=cmd_args["startdt"],
+                              forecast_hour=cmd_args["forecast_hour"],
                               climomonth=month)
             output_raster.GetRasterBand(1).SetMetadata(metadata)
-
             output_raster.FlushCache() # Write to disk
             del output_raster
     ncid.close()
